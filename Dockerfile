@@ -6,113 +6,170 @@ LABEL org.opencontainers.image.url="https://github.com/bandogora/nunit-Ceasy"
 LABEL org.opencontainers.image.source="https://github.com/bandogora/nunit-Ceasy"
 LABEL org.opencontainers.image.documentation="https://unit.nginx.org/installation/#docker-images"
 
-# Copy app source files
-COPY --link ./src/* /usr/src/app/
-
-# Add the default entrypoint (unsafe links)
-ADD --link https://raw.githubusercontent.com/nginx/unit/master/pkg/docker/docker-entrypoint.sh /usr/local/bin/
-
 # Add the default welcome page (unsafe links)
 ADD --link https://raw.githubusercontent.com/nginx/unit/master/pkg/docker/welcome.html /usr/share/unit/welcome/welcome.html
 ADD --link https://raw.githubusercontent.com/nginx/unit/master/pkg/docker/welcome.json /usr/share/unit/welcome/welcome.json
 
-# Copy initial config
-COPY ./config.json /docker-entrypoint.d/
+RUN set -ex \
+  && apt-get update \
+  && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial build-essential \
+  libssl-dev libpcre2-dev curl pkg-config vim libcurl4-openssl-dev
 
-# Make sure the entrypoint is executable
-RUN ["chmod", "+x", "/usr/local/bin/docker-entrypoint.sh"]
+RUN set -x \
+  && echo "alias ls='ls -F --color=auto'" >> /root/.bashrc \
+  && echo "alias grep='grep -nI --color=auto'" >> /root/.bashrc
+
+ARG PREFIX="/usr"
+ARG EXEC_PREFIX="$PREFIX"
+ARG BINDIR="$EXEC_PREFIX/bin"
+ENV SBINDIR="$EXEC_PREFIX/sbin"
+ARG INCLUDEDIR="$PREFIX/include"
+ARG LIBDIR="$EXEC_PREFIX/lib"
+ARG MODULESDIR="$LIBDIR/unit/modules"
+ARG DATAROOTDIR="$PREFIX/share"
+ARG MANDIR="$DATAROOTDIR/man"
+ARG LOCALSTATEDIR="$PREFIX/var"
+ARG LIBSTATEDIR="$LOCALSTATEDIR/run/unit"
+ARG LOGDIR="$LOCALSTATEDIR/log/unit"
+ARG LOGFILE="$LOGDIR/unit.log"
+ENV RUNSTATEDIR="$LOCALSTATEDIR/run/unit"
+ENV PIDPATH="$RUNSTATEDIR/unit.pid"
+ENV SOCKET="$RUNSTATEDIR/control.unit.sock"
+ARG TMPDIR="/tmp"
+ARG UNIT_GROUP="unit"
+ARG UNIT_USER="unit"
+
+ARG CLONEDIR="$PREFIX/src/unit"
+ARG APPDIR="$PREFIX/src/app"
+ARG APPBINDIR="/srv"
+ARG NCPU="getconf _NPROCESSORS_ONLN"
+
+# Prepare dirs, group, and user
+RUN set -ex \
+  && mkdir -p \
+    $BINDIR \
+    $SBINDIR \
+    $INCLUDEDIR \
+    $LIBDIR \
+    $MODULESDIR \
+    $DATAROOTDIR \
+    $MANDIR \
+    $LOCALSTATEDIR \
+    $LOGDIR \
+    $RUNSTATEDIR \
+    $TMPDIR \
+    $CLONEDIR \
+    $APPDIR \
+    /docker-entrypoint.d \
+    /usr/var/lib/unit/certs \
+    /usr/var/lib/unit/scripts \
+  && mkdir -p -m=700 $LIBSTATEDIR \
+  && groupadd --gid 999 $UNIT_GROUP \
+  && useradd \
+       --uid 999 \
+       --gid $UNIT_GROUP \
+       --no-create-home \
+       --home /nonexistent \
+       --comment "unit user" \
+       --shell /bin/false \
+       $UNIT_USER
+
+# Clone Unit
+RUN ["hg", "clone", "-u", "1.31.1-1", "https://hg.nginx.org/unit", "$CLONEDIR"]
+
+WORKDIR $CLONEDIR
+
+#RUN set -ex make -j "$(eval $NCPU)" -C pkg/contrib .njs
+
+ENV DEB_CFLAGS_MAINT_APPEND="-Wp,-D_FORTIFY_SOURCE=2 -fPIC"
+ENV DEB_LDFLAGS_MAINT_APPEND="-Wl,--as-needed -pie"
+ENV DEB_BUILD_MAINT_OPTIONS="hardening=+all,-pie"
+#ENV PKG_CONFIG_PATH="$CLONEDIR/pkg/contrib/njs/build"
+
+ARG CC_OPT="dpkg-buildflags --get CFLAGS"
+ARG LD_OPT="dpkg-buildflags --get LDFLAGS"
+
+ARG CONFIGURE_ARGS_MODULES=\
+"--cc=gcc \
+--openssl \
+--user=$UNIT_USER \
+--group=$UNIT_GROUP \
+--prefix=$PREFIX \
+--exec-prefix=$EXEC_PREFIX \
+--bindir=$BINDIR \
+--sbindir=$SBINDIR \
+--includedir=$INCLUDEDIR \
+--libdir=$LIBDIR \
+--modulesdir=$MODULESDIR \
+--datarootdir=$DATAROOTDIR \
+--mandir=$MANDIR \
+--localstatedir=$LOCALSTATEDIR \
+--logdir=$LOGDIR \
+--log=$LOGFILE \
+--runstatedir=$RUNSTATEDIR \
+--pid=$PIDPATH \
+--control=unix:$SOCKET \
+--tmpdir=$TMPDIR"
 
 RUN set -ex \
-  && savedAptMark="$(apt-mark showmanual)" \
-  && apt-get update \
-  && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial build-essential libssl-dev libpcre2-dev curl pkg-config \
-  && mkdir -p /usr/lib/unit/modules /usr/lib/unit/debug-modules \
-  && mkdir -p /usr/src/app \
-  && cd /usr/src \
-  && hg clone -u 1.31.0-1 https://hg.nginx.org/unit \
-  && cd unit \
-  && NCPU="$(getconf _NPROCESSORS_ONLN)" \
-  && DEB_HOST_MULTIARCH="$(dpkg-architecture -q DEB_HOST_MULTIARCH)" \
-  && export DEB_BUILD_MAINT_OPTIONS="hardening=+all,-pie" \
-  && CC_OPT="$(DEB_CFLAGS_MAINT_APPEND="-Wp,-D_FORTIFY_SOURCE=2 -fPIC" dpkg-buildflags --get CFLAGS)" \
-  && LD_OPT="$(DEB_LDFLAGS_MAINT_APPEND="-Wl,--as-needed -pie" dpkg-buildflags --get LDFLAGS)" \
-  && CONFIGURE_ARGS_MODULES="--prefix=/usr \
-              --statedir=/var/lib/unit \
-              --control=unix:/var/run/control.unit.sock \
-              --runstatedir=/var/run \
-              --pid=/var/run/unit.pid \
-              --logdir=/var/log \
-              --log=/var/log/unit.log \
-              --tmpdir=/var/tmp \
-              --user=unit \
-              --group=unit \
-              --openssl \
-              --libdir=/usr/lib/$DEB_HOST_MULTIARCH" \
-  && CONFIGURE_ARGS="$CONFIGURE_ARGS_MODULES --njs" \
-  && make -j $NCPU -C pkg/contrib .njs \
-  && export PKG_CONFIG_PATH=$(pwd)/pkg/contrib/njs/build \
-  && ./configure $CONFIGURE_ARGS --cc-opt="$CC_OPT" --ld-opt="$LD_OPT" --modulesdir=/usr/lib/unit/debug-modules --debug \
-  && make -j $NCPU unitd \
-  && install -pm755 build/sbin/unitd /usr/sbin/unitd-debug \
+  && printenv \
+  && ./configure $CONFIGURE_ARGS_MODULES --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)" \
+  && make -j $(eval $NCPU) unitd \
+  && install -pm755 /usr/src/unit/build/sbin/unitd "$SBINDIR/unitd" \
+  && ln -sf /dev/stdout "$LOGFILE" \
   && make clean \
-  && ./configure $CONFIGURE_ARGS --cc-opt="$CC_OPT" --ld-opt="$LD_OPT" --modulesdir=/usr/lib/unit/modules \
-  && make -j $NCPU unitd \
-  && install -pm755 build/sbin/unitd /usr/sbin/unitd \
-  && make clean \
-  && /bin/true \
-  && ./configure $CONFIGURE_ARGS_MODULES --cc-opt="$CC_OPT" --modulesdir=/usr/lib/unit/debug-modules --debug \
-  && ./configure  \
-  && make -j $NCPU version \
-  && make clean \
-  && ./configure $CONFIGURE_ARGS_MODULES --cc-opt="$CC_OPT" --modulesdir=/usr/lib/unit/modules \
-  && ./configure  \
-  && make -j $NCPU version \
-  && make clean \
-  && ./configure $CONFIGURE_ARGS --cc-opt="$CC_OPT" --ld-opt="$LD_OPT" --modulesdir=/usr/lib/unit/debug-modules --debug  \
-  && make -j $NCPU libunit-install \
+  && ./configure --openssl --debug --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)" \
+  && make -j $(eval $NCPU) libunit-install \
   && chmod +x ./build/lib/libunit.a \
   && mv ./build/lib/libunit.a ../app/libunit.a \
+  && make clean
+
+RUN set -ex \
   && cd \
-  && for f in /usr/sbin/unitd /usr/lib/unit/modules/*.unit.so; do \
+  && savedAptMark="$(apt-mark showmanual)" \
+  && for f in $SBINDIR/unitd $MODULESDIR/*.unit.so; do \
       ldd $f | awk '/=>/{print $(NF-1)}' | while read n; do dpkg-query -S $n; done | sed 's/^\([^:]\+\):.*$/\1/' | sort | uniq >> /requirements.apt; \
      done \
   && apt-mark showmanual | xargs apt-mark auto > /dev/null \
   && { [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; } \
   && /bin/true \
-  && mkdir -p /var/lib/unit/ \
-  && mkdir -p /docker-entrypoint.d/ \
-  && groupadd --gid 999 unit \
-  && useradd \
-       --uid 999 \
-       --gid unit \
-       --no-create-home \
-       --home /nonexistent \
-       --comment "unit user" \
-       --shell /bin/false \
-       unit \
   && apt-get update \
-  && apt-get --no-install-recommends --no-install-suggests -y install curl $(cat /requirements.apt) \
-  && ln -sf /dev/stdout /var/log/unit.log
+  && apt-get --no-install-recommends --no-install-suggests -y install $(cat /requirements.apt)
+
+# Copy app source files
+COPY --link ./src/* "$APPDIR"
+
+# Copy SSL certs
+COPY --link ./cert/* /usr/src/cert/
 
 # Compile and link C app against libunit.a
 Run set -x \
-  && export DEB_BUILD_OPTIONS="hardening=+all,-pie" \
-  && CC_OPT="$(DEB_CFLAGS_APPEND="-D_FORTIFY_SOURCE=2 -fPIC -I/usr/src/unit/src" dpkg-buildflags --get CFLAGS)" \
-  && LD_OPT="$(DEB_LDFLAGS_APPEND="-Wl,--as-needed -pie -L. -lc -l:libunit.a -lpthread" dpkg-buildflags --get LDFLAGS)" \
   && cd /usr/src/app \
-  && gcc $CC_OPT main.c -o app $LD_OPT \
+  && CC="$(DEB_CFLAGS_APPEND="-D_FORTIFY_SOURCE=2 -fPIC -I/usr/src/unit/src -std=c11" dpkg-buildflags --get CFLAGS)" \
+  && LD="$(DEB_LDFLAGS_APPEND="-Wl,--as-needed -pie -L. -lc -lunit -lpthread -lcurl" dpkg-buildflags --get LDFLAGS)" \
+  && gcc $CC main.c custom_http_client.c -o app $LD \
   && chmod +x ./app \
   && mv ./app /srv/app
 
 # Cleanup
 RUN set -x \
   && apt-get purge -y --auto-remove build-essential \
-  && rm -rf /usr/src/ \
+  && rm -rf $CLONEDIR \
+  && rm -rf $APPDIR \
   && rm -rf /var/lib/apt/lists/* \
   && rm -f /requirements.apt
+
+# Copy initial config
+COPY ./config.json /docker-entrypoint.d/
+
+# Copy the default entrypoint
+COPY --link ./docker-entrypoint.sh /usr/local/bin/
+
+# Make sure the entrypoint is executable
+RUN ["chmod", "+x", "/usr/local/bin/docker-entrypoint.sh"]
 
 STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 EXPOSE 80
-CMD ["unitd", "--no-daemon", "--control", "unix:/var/run/control.unit.sock"]
+CMD ["unitd", "--no-daemon", "--control", "unix:$SOCKET"]
