@@ -2,7 +2,6 @@
 #include "custom_http_client.h"
 
 /* Newlib C includes */
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>
@@ -24,17 +23,6 @@
 #define HTTP_PORT "80"
 #endif
 
-/** @def HTTP_REQUEST_HEADERS
- *  @brief A macro that defines the HTTP request headers for the GET request.
- */
-/*#define HTTP_REQUEST_HEADERS                   \*/
-  /*"GET " HTTP_REQUEST_PATH                     \*/
-  /*" HTTP/1.1\r\n"                              \*/
-  /*"Host: " HTTP_REQUEST_HOSTNAME ":" HTTP_PORT \*/
-  /*"\r\n"                                       \*/
-  /*"Accept: application/json\r\n"               \*/
-  /*"Connection: close\r\n\r\n"*/
-
 /** @def RECV_HEADER_BUF_SIZE
  *  @brief A macro that defines the max size for HTTP response headers receive buffer.
  *
@@ -42,49 +30,71 @@
  */
 #define RECV_HEADER_BUF_SIZE 600
 
-/*#define HTTP_REQUEST_HEAD_LEN (sizeof(HTTP_REQUEST_HEADERS) - 1)*/
-
-/** HTTP send buffer defined by the HTTP_REQUEST_HEADERS macro. */
-/*static const char send_buf[] = HTTP_REQUEST_HEADERS;*/
-
 /** HTTP response headers buffer with size defined by the RECV_HEADER_BUF_SIZE macro. */
 static char recv_headers_buf[RECV_HEADER_BUF_SIZE] = "\0";
 
 /** HTTP response body buffer with size defined by the RECV_BODY_BUF_SIZE macro. */
 char recv_body_buf[RECV_BODY_BUF_SIZE] = "\0";
 
-/** Godaddy server ca certificate */
-/*static const char ca_cert[] = {*/
-	/*#include "../cert/gdig2.crt.pem"*/
-/*};*/
+struct RecvData {
+  char *response;
+  size_t size;
+};
 
-/*static const char pvta_cert[] = {*/
-	/*#include "../cert/pvta-com.pem"*/
-/*};*/
+struct RecvData recv_body = { recv_body_buf, 0};
+struct RecvData recv_headers = { recv_headers_buf, 0};
+
+size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
+  size_t realsize = size * nitems;
+  struct RecvData *mem = (struct RecvData *)userdata;
+
+  memcpy(&(mem->response[mem->size]), buffer, realsize);
+  mem->size += realsize;
+  mem->response[mem->size] = 0;
+
+  fprintf(stdout, "%s\n", mem->response);
+
+  return realsize;
+}
+
+static size_t cb(void *data, size_t size, size_t nmemb, void *clientp) {
+  size_t realsize = size * nmemb;
+  struct RecvData *mem = (struct RecvData *)clientp;
+
+  memcpy(&(mem->response[mem->size]), data, realsize);
+  mem->size += realsize;
+  mem->response[mem->size] = 0;
+
+  fprintf(stdout, "%s\n", mem->response);
+
+  return realsize;
+}
 
 int http_request_routes(void) {
   CURL *curl = curl_easy_init();
   CURLcode res;
 
-  struct curl_slist *chunk = NULL;
-  chunk = curl_slist_append(chunk, "Accept: application/json");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+  struct curl_slist *header = NULL;
+  header = curl_slist_append(header, "Accept: application/json");
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header);
 
   curl_easy_setopt(curl, CURLOPT_URL, URL);
   curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
 
-  curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+  /*curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);*/
   curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
   /* we want the headers be written to this file handle */
-  curl_easy_setopt(curl, CURLOPT_HEADERDATA, recv_headers_buf);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, cb);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&recv_body);
 
   /* we want the body be written to this file handle instead of stdout */
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, recv_body_buf);
+  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+  curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&recv_headers);
 
-  curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, "PEM");
-  curl_easy_setopt(curl, CURLOPT_SSLCERT, "../cert/pvta-com.pem");
-  curl_easy_setopt(curl, CURLOPT_CAINFO, "../cert/gdig2.crt.pem");
+  /*curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, "PEM");*/
+  /*curl_easy_setopt(curl, CURLOPT_SSLCERT, "/srv/cert/");*/
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 
   /* Perform the request, res will get the return code */
@@ -94,6 +104,9 @@ int http_request_routes(void) {
     fprintf(stderr, "curl_easy_perform() failed: %s\n",
         curl_easy_strerror(res));
   }
+
+  /*fprintf(stdout, "%s\n", recv_headers_buf);*/
+  /*fprintf(stdout, "%s\n", recv_body_buf);*/
 
   /* always cleanup */
   curl_easy_cleanup(curl);

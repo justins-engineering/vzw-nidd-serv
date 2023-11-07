@@ -139,15 +139,24 @@ RUN set -ex \
 # Copy app source files
 COPY --link ./src/* "$APPDIR"
 
-# Copy SSL certs
-COPY --link ./cert/* /usr/src/cert/
-
 # Compile and link C app against libunit.a
 Run set -x \
   && cd /usr/src/app \
-  && CC="$(DEB_CFLAGS_APPEND="-D_FORTIFY_SOURCE=2 -fPIC -I/usr/src/unit/src -std=c11" dpkg-buildflags --get CFLAGS)" \
-  && LD="$(DEB_LDFLAGS_APPEND="-Wl,--as-needed -pie -L. -lc -lunit -lpthread -lcurl" dpkg-buildflags --get LDFLAGS)" \
-  && gcc $CC main.c custom_http_client.c -o app $LD \
+  && gcc \
+    -O2 \
+    -fstack-protector-strong \
+    -Wformat -Werror=format-security \
+    -Wp,-D_FORTIFY_SOURCE=2 \
+    -fPIC \
+    -std=c11 \
+    -I/usr/src/unit/src \
+    main.c custom_http_client.c \
+    -o app \
+    -Wl,-z,relro \
+    -Wl,-z,now \
+    -Wl,--as-needed \
+    -pie \
+    -L. -lc -lunit -lpthread -lcurl \
   && chmod +x ./app \
   && mv ./app /srv/app
 
