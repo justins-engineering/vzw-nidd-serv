@@ -1,0 +1,93 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "Build",
+      "dependsOn": "Docker buildx prune",
+      "dependsOrder": "sequence",
+      "command": "docker",
+      "args": [
+        "build",
+        "-t",
+        "nunit:debug",
+        "--build-arg",
+        "debug=true",
+        "."
+      ],
+      "options": {
+        "env": {
+          "DOCKER_DEBUG": "true"
+        }
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "docker build"
+    },
+    {
+      "type": "shell",
+      "label": "Docker Run",
+      "dependsOn": "Docker image prune",
+      "dependsOrder": "sequence",
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-p",
+        "8081:8081",
+        "--name nunit_debug",
+        "nunit:debug"
+      ],
+      "options": {},
+      "group": "none",
+      "detail": "docker run nunit:test",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Docker buildx prune",
+      "command": "docker",
+      "args": [
+        "buildx",
+        "prune",
+        "-f"
+      ],
+      "options": {},
+      "group": "none",
+      "detail": "Docker buildx prune",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Docker image prune",
+      "command": "docker",
+      "args": [
+        "image",
+        "prune",
+        "-f"
+      ],
+      "options": {},
+      "group": "none",
+      "detail": "Docker image prune",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "Docker container bash",
+      "command": "docker",
+      "args": [
+        "exec",
+        "-it",
+        "nunit_debug",
+        "/bin/bash"
+      ],
+      "options": {},
+      "group": "none",
+      "detail": "Docker interactive bash",
+      "problemMatcher": []
+    },
+  ]
+}

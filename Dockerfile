@@ -6,18 +6,19 @@ LABEL org.opencontainers.image.url="https://github.com/bandogora/nunit-Ceasy"
 LABEL org.opencontainers.image.source="https://github.com/bandogora/nunit-Ceasy"
 LABEL org.opencontainers.image.documentation="https://unit.nginx.org/installation/#docker-images"
 
-# Add the default welcome page (unsafe links)
-ADD --link https://raw.githubusercontent.com/nginx/unit/master/pkg/docker/welcome.html /usr/share/unit/welcome/welcome.html
-ADD --link https://raw.githubusercontent.com/nginx/unit/master/pkg/docker/welcome.json /usr/share/unit/welcome/welcome.json
+ARG debug=false
 
 RUN set -ex \
   && apt-get update \
-  && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial build-essential \
-  libssl-dev libpcre2-dev curl pkg-config vim libcurl4-openssl-dev
-
-RUN set -x \
-  && echo "alias ls='ls -F --color=auto'" >> /root/.bashrc \
-  && echo "alias grep='grep -nI --color=auto'" >> /root/.bashrc
+  && if [ "$debug" = "true" ]; then \
+    apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial build-essential \
+    libssl-dev libpcre2-dev curl pkg-config vim libcurl4-openssl-dev \
+    && echo "alias ls='ls -F --color=auto'" >> /root/.bashrc \
+    && echo "alias grep='grep -nI --color=auto'" >> /root/.bashrc; \
+  else \
+    apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial build-essential \
+    libssl-dev libpcre2-dev curl pkg-config libcurl4-openssl-dev; \
+  fi
 
 ARG PREFIX="/usr"
 ARG EXEC_PREFIX="$PREFIX"
@@ -112,13 +113,18 @@ ARG CONFIGURE_ARGS_MODULES=\
 --tmpdir=$TMPDIR"
 
 RUN set -ex \
-  && printenv \
-  && ./configure $CONFIGURE_ARGS_MODULES --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)" \
+  && if [ "$debug" = "true" ]; \
+    then ./configure $CONFIGURE_ARGS_MODULES --debug --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
+    else ./configure $CONFIGURE_ARGS_MODULES --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
+  fi \
   && make -j $(eval $NCPU) unitd \
   && install -pm755 /usr/src/unit/build/sbin/unitd "$SBINDIR/unitd" \
   && ln -sf /dev/stdout "$LOGFILE" \
   && make clean \
-  && ./configure --openssl --debug --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)" \
+  && if [ "$debug" = "true" ]; \
+    then ./configure --openssl --debug --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
+    else ./configure --openssl --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
+  fi \
   && make -j $(eval $NCPU) libunit-install \
   && chmod +x ./build/lib/libunit.a \
   && mv ./build/lib/libunit.a ../app/libunit.a \

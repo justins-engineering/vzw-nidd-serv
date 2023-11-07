@@ -16,13 +16,6 @@
 #define URL \
   "https://" HTTP_REQUEST_HOSTNAME HTTP_REQUEST_PATH
 
-/** A macro that defines the HTTP port for the request headers. */
-#if defined(CONFIG_NET_SOCKETS_SOCKOPT_TLS)
-#define HTTP_PORT "443"
-#else
-#define HTTP_PORT "80"
-#endif
-
 /** @def RECV_HEADER_BUF_SIZE
  *  @brief A macro that defines the max size for HTTP response headers receive buffer.
  *
