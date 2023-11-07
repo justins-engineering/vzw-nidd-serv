@@ -29,20 +29,6 @@ $(UNIT_SRC)/build: $(UNIT_SRC)
 
 $(UNIT_SRC)/src/test/nxt_unit_app_test.c: $(UNIT_SRC)
 
-sample: sample.c Dockerfile.sample
-	cc $(CFLAGS) ./sample-dir/sample.c -o sample $(LDFLAGS) && chmod +x sample
-
-sample.c: $(UNIT_SRC)/src/test/nxt_unit_app_test.c | sample-dir/
-	cp $(UNIT_SRC)/src/test/nxt_unit_app_test.c ./sample-dir/sample.c
-
-sample-dir/:
-	mkdir sample-dir
-
-Dockerfile.sample:
-	cp Dockerfile Dockerfile.sample
-	sed -i 's/COPY --link \.\/src\/\*/COPY --link \.\/sample-dir\/\*/' Dockerfile.sample
-	sed -i 's/main.c/sample.c/g' Dockerfile.sample
-
 .PHONY: clean libunit.a
 clean:
 	rm -f app
