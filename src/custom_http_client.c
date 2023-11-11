@@ -23,49 +23,43 @@
  */
 #define RECV_HEADER_BUF_SIZE 600
 
-/** HTTP response headers buffer with size defined by the RECV_HEADER_BUF_SIZE macro. */
-static char recv_headers_buf[RECV_HEADER_BUF_SIZE] = "\0";
-
-/** HTTP response body buffer with size defined by the RECV_BODY_BUF_SIZE macro. */
-char recv_body_buf[RECV_BODY_BUF_SIZE] = "\0";
-
-struct RecvData {
+typedef struct RecvData {
   char *response;
   size_t size;
-};
-
-struct RecvData recv_body = { recv_body_buf, 0};
-struct RecvData recv_headers = { recv_headers_buf, 0};
+} RecvData;
 
 size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
   size_t realsize = size * nitems;
-  struct RecvData *mem = (struct RecvData *)userdata;
+  RecvData *mem = (RecvData *)userdata;
 
   memcpy(&(mem->response[mem->size]), buffer, realsize);
   mem->size += realsize;
   mem->response[mem->size] = 0;
-
-  fprintf(stdout, "%s\n", mem->response);
 
   return realsize;
 }
 
 static size_t cb(void *data, size_t size, size_t nmemb, void *clientp) {
   size_t realsize = size * nmemb;
-  struct RecvData *mem = (struct RecvData *)clientp;
+  RecvData *mem = (RecvData *)clientp;
 
   memcpy(&(mem->response[mem->size]), data, realsize);
   mem->size += realsize;
   mem->response[mem->size] = 0;
 
-  fprintf(stdout, "%s\n", mem->response);
-
   return realsize;
 }
 
-int http_request_routes(void) {
+int http_request_routes(nxt_unit_request_info_t *req, char *buffer) {
   CURL *curl = curl_easy_init();
   CURLcode res;
+
+  /** HTTP response headers buffer with size defined by the RECV_HEADER_BUF_SIZE
+   * macro. */
+  static char recv_headers_buf[RECV_HEADER_BUF_SIZE] = "\0";
+
+  RecvData recv_body = {buffer, 0};
+  RecvData recv_headers = {recv_headers_buf, 0};
 
   struct curl_slist *header = NULL;
   header = curl_slist_append(header, "Accept: application/json");
@@ -74,8 +68,8 @@ int http_request_routes(void) {
   curl_easy_setopt(curl, CURLOPT_URL, URL);
   curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
 
-  /*curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);*/
-  curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+  curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+  // curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
   /* we want the headers be written to this file handle */
@@ -89,17 +83,16 @@ int http_request_routes(void) {
   /*curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, "PEM");*/
   /*curl_easy_setopt(curl, CURLOPT_SSLCERT, "/srv/cert/");*/
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+  // curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 
   /* Perform the request, res will get the return code */
   res = curl_easy_perform(curl);
   /* Check for errors */
   if (res != CURLE_OK) {
-    fprintf(stderr, "curl_easy_perform() failed: %s\n",
-        curl_easy_strerror(res));
+    nxt_unit_req_alert(
+        req, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res)
+    );
   }
-
-  /*fprintf(stdout, "%s\n", recv_headers_buf);*/
-  /*fprintf(stdout, "%s\n", recv_body_buf);*/
 
   /* always cleanup */
   curl_easy_cleanup(curl);

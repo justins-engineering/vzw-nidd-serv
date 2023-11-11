@@ -4,6 +4,8 @@
 
 #ifndef CUSTOM_HTTP_CLIENT_H
 #define CUSTOM_HTTP_CLIENT_H
+#include <nxt_unit.h>
+
 #include "stop.h"
 
 /** @def RECV_BODY_BUF_SIZE
@@ -14,10 +16,10 @@
 #define RECV_BODY_BUF_SIZE 10240
 
 /** HTTP response body buffer with size defined by the RECV_BODY_BUF_SIZE macro. */
-extern char recv_body_buf[RECV_BODY_BUF_SIZE];
+// extern char recv_body_buf[RECV_BODY_BUF_SIZE];
 
 /** @fn char* http_get_request(void)
  *  @brief Makes an HTTP GET request and returns a char pointer to the HTTP response body buffer.
  */
-int http_request_routes(void);
+int http_request_routes(nxt_unit_request_info_t* req, char* buffer);
 #endif

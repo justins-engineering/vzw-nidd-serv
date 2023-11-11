@@ -3,22 +3,20 @@
  * Copyright (C) NGINX, Inc.
  */
 
+#include <curl/curl.h>
 #include <nxt_clang.h>
 #include <nxt_unit.h>
 #include <nxt_unit_request.h>
-
-// #include "../include/nxt_unit.h"
-// #include "../include/nxt_unit_request.h"
-// #include "../include/nxt_clang.h"
 #include <pthread.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "stop.h"
-/*#include "jsmn_parse.h"*/
 #include "custom_http_client.h"
+#include "jsmn_parse.h"
+#include "stop.h"
 
 #define CONTENT_TYPE "Content-Type"
 #define TEXT_PLAIN "text/plain; charset=utf-8"
@@ -28,10 +26,12 @@ static int thread_count;
 static pthread_t *threads;
 
 static unsigned int minutes_to_departure(Departure *departure) {
-  int edt_ms = departure->etd;
+  long edt_ms = departure->etd;
   struct timespec ts;
   timespec_get(&ts, TIME_UTC);
-  return (unsigned int)(edt_ms - (ts.tv_nsec / 1000)) / 60;
+
+  long time_ms = (long)(ts.tv_sec * 1000) + (long)(ts.tv_nsec / 1000000);
+  return (unsigned int)(edt_ms - time_ms) / 60000;
 }
 
 static inline char *copy(char *p, const void *src, uint32_t len) {
@@ -83,18 +83,27 @@ static int ready_handler(nxt_unit_ctx_t *ctx) {
   return NXT_UNIT_OK;
 }
 
-static void app_request_handler(nxt_unit_request_info_t *req) {
+static void stop_request_handler(nxt_unit_request_info_t *req) {
   int rc;
   char *p;
   ssize_t res;
   nxt_unit_buf_t *buf;
+  unsigned int min;
+  char id_str[12];
+
+  static Stop stop = {.last_updated = 0, .id = STOP_ID};
+  size_t stop_size = sizeof(stop);
+
+  /** HTTP response body buffer with size defined by the RECV_BODY_BUF_SIZE
+   * macro. */
+  char recv_body_buf[RECV_BODY_BUF_SIZE] = "\0";
 
   rc = nxt_unit_response_init(
       req, 200 /* Status code. */, 1 /* Number of response headers. */,
       nxt_length(CONTENT_TYPE) + nxt_length(TEXT_PLAIN)
   );
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    printf("nxt_unit_response_init failed");
+    nxt_unit_req_log(req, NXT_UNIT_LOG_ALERT, "nxt_unit_response_init failed");
     goto fail;
   }
 
@@ -103,25 +112,35 @@ static void app_request_handler(nxt_unit_request_info_t *req) {
       nxt_length(TEXT_PLAIN)
   );
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    printf("nxt_unit_response_add_field failed");
+    nxt_unit_req_log(
+        req, NXT_UNIT_LOG_ALERT, "nxt_unit_response_add_field failed"
+    );
     goto fail;
   }
 
   rc = nxt_unit_response_send(req);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    printf("first nxt_unit_response_send failed");
+    nxt_unit_req_alert(req, "first nxt_unit_response_send failed");
     goto fail;
   }
 
-  rc = http_request_routes();
+  rc = http_request_routes(req, recv_body_buf);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    printf("http_request_routes failed");
+    nxt_unit_req_alert(req, "http_request_routes failed");
     goto fail;
+  }
+
+  rc = parse_json_for_stop(recv_body_buf, &stop);
+
+  stop_size += sizeof(RouteDirection) * stop.routes_size;
+
+  for (int i = 0; i < stop.routes_size; i++) {
+    struct RouteDirection route_direction = stop.route_directions[i];
+    stop_size += sizeof(Departure) * route_direction.departures_size;
   }
 
   buf = nxt_unit_response_buf_alloc(
-      req,
-      (req->request_buf->end - req->request_buf->start) + strlen(recv_body_buf)
+      req, ((req->request_buf->end - req->request_buf->start) + stop_size)
   );
 
   if (nxt_slow_path(buf == NULL)) {
@@ -130,7 +149,56 @@ static void app_request_handler(nxt_unit_request_info_t *req) {
   }
 
   p = buf->free;
-  p = copy(p, recv_body_buf, strlen(recv_body_buf));
+
+  p = copy(p, "Stop ID: ", strlen("Stop ID: "));
+  p = copy(p, stop.id, strlen(stop.id));
+  *p++ = '\n';
+
+  for (int i = 0; i < stop.routes_size; i++) {
+    struct RouteDirection route_direction = stop.route_directions[i];
+    nxt_unit_req_log(
+        req, NXT_UNIT_LOG_INFO,
+        "========= Route ID: %d; Direction: %c; Departures size: %d "
+        "========= ",
+        route_direction.id, route_direction.direction_code,
+        route_direction.departures_size
+    );
+
+    *p++ = '\n';
+
+    sprintf(id_str, "%d", route_direction.id);
+    p = copy(p, "Route ID: ", strlen("Route ID: "));
+    p = copy(p, id_str, strlen(id_str));
+    *p++ = '\n';
+
+    p = copy(p, "Route Direction: ", strlen("Route Direction: "));
+    *p++ = route_direction.direction_code;
+    *p++ = '\n';
+
+    sprintf(id_str, "%d", route_direction.departures_size);
+    p = copy(p, "Departures size: ", strlen("Departures size: "));
+    p = copy(p, id_str, strlen(id_str));
+    *p++ = '\n';
+
+    for (int j = 0; j < route_direction.departures_size; j++) {
+      struct Departure departure = route_direction.departures[j];
+
+      min = minutes_to_departure(&departure);
+      nxt_unit_req_log(
+          req, NXT_UNIT_LOG_INFO, "Display text: %s", departure.display_text
+      );
+      nxt_unit_req_log(req, NXT_UNIT_LOG_INFO, "Minutes to departure: %d", min);
+
+      p = copy(p, "Display text: ", strlen("Display text: "));
+      p = copy(p, departure.display_text, strlen(departure.display_text));
+      *p++ = '\n';
+
+      sprintf(id_str, "%d", min);
+      p = copy(p, "Minutes to departure: ", strlen("Minutes to departure: "));
+      p = copy(p, id_str, strlen(id_str));
+      *p++ = '\n';
+    }
+  }
 
   buf->free = p;
 
@@ -145,7 +213,7 @@ int main(int argc, char **argv) {
   nxt_unit_ctx_t *ctx;
   nxt_unit_init_t init;
 
-  /*static Stop stop = {.last_updated = 0, .id = STOP_ID};*/
+  curl_global_init(CURL_GLOBAL_NOTHING);
 
   if (argc == 3 && strcmp(argv[1], "-t") == 0) {
     thread_count = atoi(argv[2]);
@@ -153,7 +221,7 @@ int main(int argc, char **argv) {
 
   memset(&init, 0, sizeof(nxt_unit_init_t));
 
-  init.callbacks.request_handler = app_request_handler;
+  init.callbacks.request_handler = stop_request_handler;
   init.callbacks.ready_handler = ready_handler;
 
   ctx = nxt_unit_init(&init);
@@ -182,6 +250,7 @@ int main(int argc, char **argv) {
   }
 
   nxt_unit_done(ctx);
+  curl_global_cleanup();
 
   nxt_unit_debug(NULL, "main worker done");
 

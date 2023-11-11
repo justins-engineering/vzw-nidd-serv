@@ -21,7 +21,7 @@
 
 typedef struct Departure {
   char display_text[50];
-  unsigned int etd;
+  long etd;
 } Departure;
 
 typedef struct RouteDirection {
