@@ -7,7 +7,7 @@ SLEEPSEC=1
 
 curl_put()
 {
-    RET=$(/usr/bin/curl -s -w '%{http_code}' -X PUT --data-binary @$1 --unix-socket $SOCKET http://localhost/$2)
+    RET=$(/usr/bin/curl -s -w '%{http_code}' -X PUT --data-binary @$1 --unix-socket $UNIT_SOCKET http://localhost/$2)
     RET_BODY=$(echo $RET | /bin/sed '$ s/...$//')
     RET_STATUS=$(echo $RET | /usr/bin/tail -c 4)
     if [ "$RET_STATUS" -ne "200" ]; then
@@ -26,10 +26,10 @@ if [ "$1" = "unitd" ]; then
         echo "$0: /var/lib/unit/ is not empty, skipping initial configuration..."
     else
         echo "$0: Launching Unit daemon to perform initial configuration..."
-        $SBINDIR/$1 --control unix:$SOCKET
+        $UNIT_SBIN_DIR/$1 --control unix:$UNIT_SOCKET
 
         for i in $(/usr/bin/seq $WAITLOOPS); do
-            if [ ! -S $SOCKET ]; then
+            if [ ! -S $UNIT_SOCKET ]; then
                 echo "$0: Waiting for control socket to be created..."
                 /bin/sleep $SLEEPSEC
             else
@@ -38,7 +38,7 @@ if [ "$1" = "unitd" ]; then
         done
         # even when the control socket exists, it does not mean unit has finished initialisation
         # this curl call will get a reply once unit is fully launched
-        /usr/bin/curl -s -X GET --unix-socket $SOCKET http://localhost/
+        /usr/bin/curl -s -X GET --unix-socket $UNIT_SOCKET http://localhost/
 
         if /usr/bin/find "/docker-entrypoint.d/" -mindepth 1 -print -quit 2>/dev/null | /bin/grep -q .; then
             echo "$0: /docker-entrypoint.d/ is not empty, applying initial configuration..."
@@ -77,19 +77,19 @@ if [ "$1" = "unitd" ]; then
         fi
 
         echo "$0: Stopping Unit daemon after initial configuration..."
-        kill -TERM $(/bin/cat $PIDPATH)
+        kill -TERM $(/bin/cat $UNIT_PID_PATH)
 
         for i in $(/usr/bin/seq $WAITLOOPS); do
-            if [ -S $SOCKET ]; then
+            if [ -S $UNIT_SOCKET ]; then
                 echo "$0: Waiting for control socket to be removed..."
                 /bin/sleep $SLEEPSEC
             else
                 break
             fi
         done
-        if [ -S $SOCKET ]; then
-            kill -KILL $(/bin/cat $PIDPATH)
-            rm -f $SOCKET
+        if [ -S $UNIT_SOCKET ]; then
+            kill -KILL $(/bin/cat $UNIT_PID_PATH)
+            rm -f $UNIT_SOCKET
         fi
 
         echo

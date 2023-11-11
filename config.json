@@ -7,7 +7,7 @@
   "applications": {
       "c-app": {
           "type": "external",
-          "working_directory": "/srv/",
+          "working_directory": "/srv",
           "executable": "/srv/app"
       }
   }

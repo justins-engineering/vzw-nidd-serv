@@ -38,12 +38,13 @@
         "--rm",
         "-p",
         "8081:8081",
-        "--name nunit_debug",
+        "--name",
+        "nunit_debug",
         "nunit:debug"
       ],
       "options": {},
       "group": "none",
-      "detail": "docker run nunit:test",
+      "detail": "docker run nunit:debug",
       "problemMatcher": []
     },
     {

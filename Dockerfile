@@ -20,120 +20,114 @@ RUN set -ex \
     libssl-dev libpcre2-dev curl pkg-config libcurl4-openssl-dev; \
   fi
 
-ARG PREFIX="/usr"
-ARG EXEC_PREFIX="$PREFIX"
-ARG BINDIR="$EXEC_PREFIX/bin"
-ENV SBINDIR="$EXEC_PREFIX/sbin"
-ARG INCLUDEDIR="$PREFIX/include"
-ARG LIBDIR="$EXEC_PREFIX/lib"
-ARG MODULESDIR="$LIBDIR/unit/modules"
-ARG DATAROOTDIR="$PREFIX/share"
-ARG MANDIR="$DATAROOTDIR/man"
-ARG LOCALSTATEDIR="$PREFIX/var"
-ARG LIBSTATEDIR="$LOCALSTATEDIR/run/unit"
-ARG LOGDIR="$LOCALSTATEDIR/log/unit"
-ARG LOGFILE="$LOGDIR/unit.log"
-ENV RUNSTATEDIR="$LOCALSTATEDIR/run/unit"
-ENV PIDPATH="$RUNSTATEDIR/unit.pid"
-ENV SOCKET="$RUNSTATEDIR/control.unit.sock"
-ARG TMPDIR="/tmp"
-ARG UNIT_GROUP="unit"
-ARG UNIT_USER="unit"
+ARG prefix="/usr"
+ARG exec_prefix="$prefix"
+ARG bin_dir="$exec_prefix/bin"
+ENV UNIT_SBIN_DIR="$exec_prefix/sbin"
+ARG include_dir="$prefix/include"
+ARG lib_dir="$exec_prefix/lib"
+ARG modules_dir="$lib_dir/unit/modules"
+ARG data_root_dir="$prefix/share"
+ARG man_dir="$data_root_dir/man"
+ARG local_state_dir="$prefix/var"
+ARG lib_state_dir="$local_state_dir/run/unit"
+ARG log_dir="$local_state_dir/log/unit"
+ARG log_file="$log_dir/unit.log"
+ENV UNIT_RUN_STATE_DIR="$local_state_dir/run/unit"
+ENV UNIT_PID_PATH="$UNIT_RUN_STATE_DIR/unit.pid"
+ENV UNIT_SOCKET="$UNIT_RUN_STATE_DIR/control.unit.sock"
+ARG tmp_dir="/tmp"
+ARG unit_group="unit"
+ARG unit_user="unit"
 
-ARG CLONEDIR="$PREFIX/src/unit"
-ARG APPDIR="$PREFIX/src/app"
-ARG APPBINDIR="/srv"
-ARG NCPU="getconf _NPROCESSORS_ONLN"
+ARG unit_clone_dir="$prefix/src/unit"
+ARG app_clone_dir="$prefix/src/app"
+ARG app_bin_dir="/srv"
+ARG app_include_dir="/usr/include"
+ARG ncpu="getconf _NPROCESSORS_ONLN"
 
 # Prepare dirs, group, and user
 RUN set -ex \
   && mkdir -p \
-    $BINDIR \
-    $SBINDIR \
-    $INCLUDEDIR \
-    $LIBDIR \
-    $MODULESDIR \
-    $DATAROOTDIR \
-    $MANDIR \
-    $LOCALSTATEDIR \
-    $LOGDIR \
-    $RUNSTATEDIR \
-    $TMPDIR \
-    $CLONEDIR \
-    $APPDIR \
+    $bin_dir \
+    $UNIT_SBIN_DIR \
+    $include_dir \
+    $lib_dir \
+    $modules_dir \
+    $data_root_dir \
+    $man_dir \
+    $local_state_dir/lib/unit/certs \
+    $local_state_dir/lib/unit/scripts \
+    $log_dir \
+    $UNIT_RUN_STATE_DIR \
+    $tmp_dir \
+    $unit_clone_dir \
+    $app_clone_dir \
     /docker-entrypoint.d \
-    /usr/var/lib/unit/certs \
-    /usr/var/lib/unit/scripts \
-  && mkdir -p -m=700 $LIBSTATEDIR \
-  && groupadd --gid 999 $UNIT_GROUP \
+  && mkdir -p -m=700 $lib_state_dir \
+  && groupadd --gid 999 $unit_group \
   && useradd \
        --uid 999 \
-       --gid $UNIT_GROUP \
+       --gid $unit_group \
        --no-create-home \
        --home /nonexistent \
        --comment "unit user" \
        --shell /bin/false \
-       $UNIT_USER
+       $unit_user
 
 # Clone Unit
-RUN ["hg", "clone", "-u", "1.31.1-1", "https://hg.nginx.org/unit", "$CLONEDIR"]
+RUN ["hg", "clone", "-u", "1.31.1-1", "https://hg.nginx.org/unit", "$unit_clone_dir"]
 
-WORKDIR $CLONEDIR
+WORKDIR $unit_clone_dir
 
-#RUN set -ex make -j "$(eval $NCPU)" -C pkg/contrib .njs
+#RUN set -ex make -j "$(eval $ncpu)" -C pkg/contrib .njs
 
 ENV DEB_CFLAGS_MAINT_APPEND="-Wp,-D_FORTIFY_SOURCE=2 -fPIC"
 ENV DEB_LDFLAGS_MAINT_APPEND="-Wl,--as-needed -pie"
 ENV DEB_BUILD_MAINT_OPTIONS="hardening=+all,-pie"
-#ENV PKG_CONFIG_PATH="$CLONEDIR/pkg/contrib/njs/build"
+#ENV PKG_CONFIG_PATH="$unit_clone_dir/pkg/contrib/njs/build"
 
-ARG CC_OPT="dpkg-buildflags --get CFLAGS"
-ARG LD_OPT="dpkg-buildflags --get LDFLAGS"
+ARG cc_opt="dpkg-buildflags --get CFLAGS"
+ARG ld_opt="dpkg-buildflags --get LDFLAGS"
 
-ARG CONFIGURE_ARGS_MODULES=\
+ARG unit_config_args=\
 "--cc=gcc \
 --openssl \
---user=$UNIT_USER \
---group=$UNIT_GROUP \
---prefix=$PREFIX \
---exec-prefix=$EXEC_PREFIX \
---bindir=$BINDIR \
---sbindir=$SBINDIR \
---includedir=$INCLUDEDIR \
---libdir=$LIBDIR \
---modulesdir=$MODULESDIR \
---datarootdir=$DATAROOTDIR \
---mandir=$MANDIR \
---localstatedir=$LOCALSTATEDIR \
---logdir=$LOGDIR \
---log=$LOGFILE \
---runstatedir=$RUNSTATEDIR \
---pid=$PIDPATH \
---control=unix:$SOCKET \
---tmpdir=$TMPDIR"
+--user=$unit_user \
+--group=$unit_group \
+--prefix=$prefix \
+--exec-prefix=$exec_prefix \
+--bindir=$bin_dir \
+--sbindir=$UNIT_SBIN_DIR \
+--includedir=$include_dir \
+--libdir=$lib_dir \
+--modulesdir=$modules_dir \
+--datarootdir=$data_root_dir \
+--mandir=$man_dir \
+--localstatedir=$local_state_dir \
+--logdir=$log_dir \
+--log=$log_file \
+--runstatedir=$UNIT_RUN_STATE_DIR \
+--pid=$UNIT_PID_PATH \
+--control=unix:$UNIT_SOCKET \
+--tmpdir=$tmp_dir"
 
 RUN set -ex \
   && if [ "$debug" = "true" ]; \
-    then ./configure $CONFIGURE_ARGS_MODULES --debug --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
-    else ./configure $CONFIGURE_ARGS_MODULES --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
+    then ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)"; \
+    else ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)"; \
   fi \
-  && make -j $(eval $NCPU) unitd \
-  && install -pm755 /usr/src/unit/build/sbin/unitd "$SBINDIR/unitd" \
-  && ln -sf /dev/stdout "$LOGFILE" \
-  && make clean \
-  && if [ "$debug" = "true" ]; \
-    then ./configure --openssl --debug --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
-    else ./configure --openssl --cc-opt="$(eval $CC_OPT)" --ld-opt="$(eval $LD_OPT)"; \
-  fi \
-  && make -j $(eval $NCPU) libunit-install \
-  && chmod +x ./build/lib/libunit.a \
-  && mv ./build/lib/libunit.a ../app/libunit.a \
+  && make -j $(eval $ncpu) unitd \
+  && install -pm755 ./build/sbin/unitd "$UNIT_SBIN_DIR/unitd" \
+  && ln -sf /dev/stdout "$log_file" \
+  && make -j $(eval $ncpu) libunit-install \
+  && cp ./src/nxt_clang.h $include_dir/. \
   && make clean
 
 RUN set -ex \
   && cd \
   && savedAptMark="$(apt-mark showmanual)" \
-  && for f in $SBINDIR/unitd $MODULESDIR/*.unit.so; do \
+  && for f in $UNIT_SBIN_DIR/unitd $modules_dir/*.unit.so; do \
       ldd $f | awk '/=>/{print $(NF-1)}' | while read n; do dpkg-query -S $n; done | sed 's/^\([^:]\+\):.*$/\1/' | sort | uniq >> /requirements.apt; \
      done \
   && apt-mark showmanual | xargs apt-mark auto > /dev/null \
@@ -143,20 +137,18 @@ RUN set -ex \
   && apt-get --no-install-recommends --no-install-suggests -y install $(cat /requirements.apt)
 
 # Copy app source files
-COPY --link ./src/* "$APPDIR"
+COPY --link ./src/* "$app_clone_dir"
 
 # Compile and link C app against libunit.a
 Run set -x \
-  && cd /usr/src/app \
+  && cd $app_clone_dir \
   && gcc \
     -O2 \
     -fstack-protector-strong \
     -Wformat -Werror=format-security \
     -Wp,-D_FORTIFY_SOURCE=2 \
     -fPIC \
-    -std=c11 \
-    -I/usr/src/unit/src \
-    main.c custom_http_client.c \
+    main.c custom_http_client.c jsmn_parse.c \
     -o app \
     -Wl,-z,relro \
     -Wl,-z,now \
@@ -164,13 +156,13 @@ Run set -x \
     -pie \
     -L. -lc -lunit -lpthread -lcurl \
   && chmod +x ./app \
-  && mv ./app /srv/app
+  && mv ./app $app_bin_dir/app
 
 # Cleanup
 RUN set -x \
   && apt-get purge -y --auto-remove build-essential \
-  && rm -rf $CLONEDIR \
-  && rm -rf $APPDIR \
+  && rm -rf $unit_clone_dir \
+  && rm -rf $app_clone_dir \
   && rm -rf /var/lib/apt/lists/* \
   && rm -f /requirements.apt
 
@@ -187,4 +179,4 @@ STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 EXPOSE 80
-CMD ["unitd", "--no-daemon", "--control", "unix:$SOCKET"]
+CMD ["unitd", "--no-daemon", "--control", "unix:$UNIT_SOCKET"]
