@@ -6,8 +6,6 @@ LABEL org.opencontainers.image.url="https://github.com/bandogora/nunit-Ceasy"
 LABEL org.opencontainers.image.source="https://github.com/bandogora/nunit-Ceasy"
 LABEL org.opencontainers.image.documentation="https://unit.nginx.org/installation/#docker-images"
 
-ARG debug=false
-
 ARG prefix="/usr"
 ARG exec_prefix="$prefix"
 ARG bin_dir="$exec_prefix/bin"
@@ -60,21 +58,21 @@ ARG unit_config_args=\
 --control=unix:$UNIT_SOCKET \
 --tmpdir=$tmp_dir"
 
-# Install dependencies
-RUN set -ex \
-  && apt-get update \
-  && if [ "$debug" = "true" ]; then \
-    apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial build-essential \
-    libssl-dev libpcre2-dev curl pkg-config vim libcurl4-openssl-dev \
-    && echo "alias ls='ls -F --color=auto'" >> /root/.bashrc \
-    && echo "alias grep='grep -nI --color=auto'" >> /root/.bashrc; \
-  else \
-    apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial build-essential \
-    libssl-dev libpcre2-dev curl pkg-config libcurl4-openssl-dev; \
-  fi
+# Copy app source files
+COPY --link ./src/* "$app_clone_dir/"
 
-# Prepare dirs, group, and user
+# Copy initial config
+COPY --link ./config.json /docker-entrypoint.d/
+
+# Copy the default entrypoint
+COPY --link ./docker-entrypoint.sh /usr/local/bin/
+
 RUN set -ex \
+# Install dependencies
+  && apt-get update \
+  && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial \
+  build-essential libssl-dev libpcre2-dev curl pkg-config libcurl4-openssl-dev \
+# Prepare dirs, group, and user
   && mkdir -p \
     $bin_dir \
     $UNIT_SBIN_DIR \
@@ -87,6 +85,7 @@ RUN set -ex \
     $log_dir \
     $UNIT_RUN_STATE_DIR \
     $tmp_dir \
+    $unit_clone_dir \
     /docker-entrypoint.d \
   && mkdir -p -m=700 $lib_state_dir \
   && groupadd --gid 999 $unit_group \
@@ -97,28 +96,22 @@ RUN set -ex \
        --home /nonexistent \
        --comment "unit user" \
        --shell /bin/false \
-       $unit_user
-
-# Clone Unit
-RUN ["hg", "clone", "-u", "1.31.1-1", "https://hg.nginx.org/unit", "$unit_clone_dir"]
-
-WORKDIR $unit_clone_dir
-
-# Configure, make, and install unitd
-RUN set -ex \
-  && if [ "$debug" = "true" ]; \
-    then ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)"; \
-    else ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)"; \
-  fi \
+       $unit_user \
+# Clone NGINX Unit
+  && hg clone -u 1.31.1-1 https://hg.nginx.org/unit $unit_clone_dir \
+# Configure and make unitd
+  && cd $unit_clone_dir \
+  && ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)" \
   && make -j $(eval $ncpu) unitd \
+# Install unitd
   && install -pm755 ./build/sbin/unitd "$UNIT_SBIN_DIR/unitd" \
+# Link stdout to log file
   && ln -sf /dev/stdout "$log_file" \
+# Make libunit.a
   && make -j $(eval $ncpu) libunit-install \
 # Add nxt_clang.h to include location
-  && cp ./src/nxt_clang.h $include_dir/.
-
+  && cp ./src/nxt_clang.h $include_dir/. \
 # Save/apt-mark unitd dependencies
-RUN set -ex \
   && cd \
   && savedAptMark="$(apt-mark showmanual)" \
   && for f in $UNIT_SBIN_DIR/unitd; do \
@@ -128,15 +121,9 @@ RUN set -ex \
   && { [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; } \
   && /bin/true \
   && apt-get update \
-  && apt-get --no-install-recommends --no-install-suggests -y install $(cat /requirements.apt)
-
-WORKDIR $app_clone_dir
-
-# Copy app source files
-COPY --link ./src/* "$app_clone_dir/"
-
+  && apt-get --no-install-recommends --no-install-suggests -y install $(cat /requirements.apt) \
 # Compile and link C app against libunit.a
-Run set -x \
+  && cd $app_clone_dir \
   && gcc \
     -O2 \
     -fstack-protector-strong \
@@ -151,20 +138,13 @@ Run set -x \
     -pie \
     -L. -lc -lunit -lpthread -lcurl \
   && chmod +x ./app \
-  && mv ./app $app_bin_dir/app
-
-# Cleanup
-RUN set -x \
+  && mv ./app $app_bin_dir/app \
+  # Cleanup
   && apt-get purge -y --auto-remove build-essential \
-  && rm -rf /usr/src/ \
+  && rm -rf $unit_clone_dir \
+  && rm -rf $app_clone_dir \
   && rm -rf /var/lib/apt/lists/* \
   && rm -f /requirements.apt
-
-# Copy initial config
-COPY --link ./config.json /docker-entrypoint.d/
-
-# Copy the default entrypoint
-COPY --link ./docker-entrypoint.sh /usr/local/bin/
 
 # Make sure the entrypoint is executable
 RUN ["chmod", "+x", "/usr/local/bin/docker-entrypoint.sh"]
