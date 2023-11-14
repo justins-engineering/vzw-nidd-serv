@@ -1,54 +1,32 @@
-# nunit-Ceasy
-Complies C code natively and links it to NGINX Unit's `libunit.a` so you can register your native C app.
+# Nidd Sign Server
+A middleware server Docker Image based on [NGIX Unit](https://unit.nginx.org/) that transforms and exchanges data between an [IoT device](https://docs.circuitdojo.com/nrf9160-introduction.html) and Verizon Thingspace using Verizon's [ThingSpace Connectivity Management API](https://thingspace.verizon.com/documentation/apis/connectivity-management/working-with-verizon/about-non-ip-data-delivery.html).
 
-Inspired by the article [NGINX Unit Adds Assembly Language Support](https://www.nginx.com/blog/nginx-unit-adds-assembly-language-support/).
+## Development
 
+### Recomendations
+- Install [NGINX Unit from source](https://unit.nginx.org/installation/#source-code)
+  - `make` libunit-install ([ref](https://www.nginx.com/blog/nginx-unit-adds-assembly-language-support/))
+  - Make sure `libunit.a` and it's `include` dir are in a path that GCC includes by default; or edit the C include file paths in the [source code](https://github.com/justins-engineering/nidd-sign-serv/blob/main/src/main.c) for testing.
+- VSCode
+  - Build & run tasks are included
+  - Configured to use Clang-Tidy
+- [Docker Buildx](https://docs.docker.com/engine/reference/commandline/buildx/)
 
-
-## Docker
-1. Add required Unit header files to your C code. i.e.
-```c
-#include "nxt_clang.h"
-#include "nxt_unit.h"
-#include "nxt_unit_request.h"
-#include "nxt_unit_typedefs.h"
-```
-**Unit source files will be included in the docker image, so you don't need local copies.**
-
-2. Put your app source files in the `src/` directory.
-3. Rename your maic C file to `main.c`; or change the expected file name in the `Dockerfile`.
-4. Build the docker image:
-  ```sh
-  docker build -t nunit:latest .
-  ```
-5. Run the docker container:
-  ```sh
-  docker run --rm -p 8081:8081 nunit:latest
-  ```
-6. See your app running at `localhost:8081`!
-
-## Local
-### Requirements
-Compiling `libunit.a` requires the Unit source code, see https://unit.nginx.org/installation/
-
-1. Run
+### Build
 ```sh
-UNIT_SRC=/path/to/unit make prepare
+docker build -t niddss:dev .
 ```
-to create `libunit.a` and copy over the necessary header to `include/`
+- Add the docker build option `--build-arg debug=true` for debugging
+  - Adds vim to the built image
+  - Adds the aliases `ls='ls -F --color=auto'` & `grep='grep -nI --color=auto'` to `/root/.bashrc`
+  - Builds `unitd` & `libunit.a` with the `--debug` optiion
+ 
+### Running
+```sh
+docker run --rm -p 8081:8081 --name niddss_dev niddss:dev
+```
 
-2. Run `make`
-
-3. Run your app `./app`
-
-## Sample
-
-1. Run
-  ```sh
-  UNIT_SRC=/path/to/unit make sample
-  ```
-
-2. Run `./sample` or build the docker image:
-  ```sh
-  docker build -t nunit:sample -f Dockerfile.sample .
-  ```
+### Docker image shell
+```sh
+docker exec -it niddss_dev /bin/bash
+```
