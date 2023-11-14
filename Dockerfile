@@ -107,7 +107,7 @@ WORKDIR $unit_clone_dir
 # Configure, make, and install unitd
 RUN set -ex \
   && if [ "$debug" = "true" ]; \
-    then ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)"; \
+    then ./configure $unit_config_args --debug --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)"; \
     else ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)"; \
   fi \
   && make -j $(eval $ncpu) unitd \

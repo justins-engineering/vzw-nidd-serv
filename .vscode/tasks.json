@@ -10,22 +10,18 @@
       "args": [
         "build",
         "-t",
-        "nunit:debug",
+        "niddss:dev",
         "--build-arg",
-        "debug=true",
-        "."
+        "debug=${input:build-debug}",
+        "${workspaceFolder}"
       ],
-      "options": {
-        "env": {
-          "DOCKER_DEBUG": "true"
-        }
-      },
+      "options": {},
       "problemMatcher": [],
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "detail": "docker build"
+      "detail": "docker buildx prune & build"
     },
     {
       "type": "shell",
@@ -39,12 +35,12 @@
         "-p",
         "8081:8081",
         "--name",
-        "nunit_debug",
-        "nunit:debug"
+        "niddss_dev",
+        "niddss:dev"
       ],
       "options": {},
       "group": "none",
-      "detail": "docker run nunit:debug",
+      "detail": "docker image prune & run niddss:dev",
       "problemMatcher": []
     },
     {
@@ -82,13 +78,24 @@
       "args": [
         "exec",
         "-it",
-        "nunit_debug",
+        "niddss_dev",
         "/bin/bash"
       ],
       "options": {},
       "group": "none",
-      "detail": "Docker interactive bash",
+      "detail": "Docker interactive bash shell",
       "problemMatcher": []
     },
+  ],
+  "inputs": [
+    {
+      "id": "build-debug",
+      "type": "pickString",
+      "description": "Build with debugging",
+      "options": [
+        "false",
+        "true"
+      ]
+    }
   ]
 }
