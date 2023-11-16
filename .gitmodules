@@ -1,0 +1,6 @@
+[submodule "jsmn"]
+	path = jsmn
+	url = https://github.com/zserge/jsmn.git
+[submodule "Turbo-Base64"]
+	path = Turbo-Base64
+	url = https://github.com/powturbo/Turbo-Base64.git

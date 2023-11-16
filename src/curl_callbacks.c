@@ -3,7 +3,7 @@
 
 #include <string.h>
 
-const size_t header_callback(
+size_t header_callback(
     char *buffer, size_t size, size_t nitems, void *userdata
 ) {
   size_t realsize = size * nitems;
@@ -16,9 +16,7 @@ const size_t header_callback(
   return realsize;
 }
 
-const size_t body_callback(
-    void *data, size_t size, size_t nmemb, void *clientp
-) {
+size_t body_callback(void *data, size_t size, size_t nmemb, void *clientp) {
   size_t realsize = size * nmemb;
   RecvData *mem = (RecvData *)clientp;
 

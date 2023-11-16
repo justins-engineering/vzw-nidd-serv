@@ -87,6 +87,9 @@ RUN set -ex \
     $log_dir \
     $UNIT_RUN_STATE_DIR \
     $tmp_dir \
+    $app_clone_dir/src \
+    $app_clone_dir/jsmn \
+    $app_clone_dir/Turbo-Base64 \
     /docker-entrypoint.d \
   && mkdir -p -m=700 $lib_state_dir \
   && groupadd --gid 999 $unit_group \
@@ -133,29 +136,20 @@ RUN set -ex \
 WORKDIR $app_clone_dir
 
 # Copy app source files
-COPY --link ./src/* "$app_clone_dir/"
+COPY --link ./src/* "$app_clone_dir"/src
+COPY --link ./Makefile "$app_clone_dir"
+COPY --link ./jsmn/* "$app_clone_dir"/jsmn
+COPY --link ./Turbo-Base64/* "$app_clone_dir"/Turbo-Base64
 
 # Compile and link C app against libunit.a
 Run set -x \
-  && gcc \
-    -O2 \
-    -fstack-protector-strong \
-    -Wformat -Werror=format-security \
-    -Wp,-D_FORTIFY_SOURCE=2 \
-    -fPIC \
-    main.c jsmn.c curl_callbacks.c http_get_routes.c jsmn_parse.c nidd_client.c \
-    -o $app_bin_dir/app \
-    -Wl,-z,relro \
-    -Wl,-z,now \
-    -Wl,--as-needed \
-    -pie \
-    -L. -lc -lunit -lpthread -lcurl \
-  && chmod +x $app_bin_dir/app
+  && make -j $(eval $ncpu) \
+  && mv app $app_bin_dir
 
 # Cleanup
 RUN set -x \
   && apt-get purge -y --auto-remove build-essential \
-  && rm -rf /usr/src/ \
+  && rm -rf /usr/src/* \
   && rm -rf /var/lib/apt/lists/* \
   && rm -f /requirements.apt
 

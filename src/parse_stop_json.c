@@ -1,15 +1,18 @@
-/* Newlib C includes */
+/** @headerfile parse_stop_json.h */
+#include "parse_stop_json.h"
+
+#include <stddef.h>
+
+#define JSMN_HEADER
+
 #include <inttypes.h>
+#include <jsmn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#define JSMN_HEADER
-
-/* app includes */
-#include "jsmn.h"
 #include "parse_stop_json.h"
 #include "stop.h"
 
@@ -43,7 +46,7 @@ static bool unique_disply_text(
     const char *json_ptr, RouteDirection *route_direction, jsmntok_t *tok,
     const size_t valid_departure_count
 ) {
-  for (int i = 0; i < valid_departure_count; i++) {
+  for (size_t i = 0; i < valid_departure_count; i++) {
     Departure *departure = &route_direction->departures[i];
     if (jsoneq(json_ptr, tok, departure->display_text)) {
       return false;
@@ -60,7 +63,7 @@ static void parse_departures(
 ) {
   size_t valid_departure_count = 0;
 
-  for (int dep_num = 0; dep_num < departures_count; dep_num++) {
+  for (size_t dep_num = 0; dep_num < departures_count; dep_num++) {
     Departure *departure = &route_direction->departures[valid_departure_count];
     bool departure_uniq = false;
     bool edt_in_future = false;
@@ -74,16 +77,9 @@ static void parse_departures(
      *  so ROUTE_DIRECTION_TOK.size is the number of Departure keys.
      */
     const size_t departure_size = ROUTE_DIRECTION_TOK.size;
-    // printf("***********Start Departure (t: %d, dep_num: %d, departure_size:
-    // %d)**********", t,
-    //         dep_num, departure_size);
-    for (int dep = 0; dep < (departure_size * 2); dep++) {
+    for (size_t dep = 0; dep < (departure_size * 2); dep++) {
       if (jsoneq(json_ptr, &DEPARTURE_TOK, "DisplayText")) {
         dep++;
-#ifdef CONFIG_DEBUG
-        printf("* DisplayText:");
-        print_token_substring(json_ptr, &DEPARTURE_TOK);
-#endif
         departure_uniq = unique_disply_text(
             json_ptr, route_direction, &DEPARTURE_TOK, valid_departure_count
         );
@@ -109,7 +105,6 @@ static void parse_departures(
          * need.
          */
         char *edt_string = json_ptr + DEPARTURE_TOK.start + 7;
-        // edt_string[10] = '\0';
         long edt = atol(edt_string);
         printf("* EDT: %ld", edt);
         if (edt > time_now) {
@@ -152,16 +147,7 @@ static void parse_departures(
       }
     }
     t += (departure_size * 2);
-    // printf("*********************(t: %d)********************\n", t);
   }
-#ifdef CONFIG_DEBUG
-  for (int i = 0; i < MAX_DEPARTURES; i++) {
-    printf(
-        "Uniq display text(s) %d: %s", i,
-        route_direction->departures[i].display_text
-    );
-  }
-#endif
   route_direction->departures_size = valid_departure_count;
 }
 
@@ -173,7 +159,7 @@ static void parse_route_directions(
 ) {
   size_t valid_route_count = 0;
 
-  for (int rd_num = 0; rd_num < route_directions_count; rd_num++) {
+  for (size_t rd_num = 0; rd_num < route_directions_count; rd_num++) {
     RouteDirection *route_direction =
         &stop->route_directions[valid_route_count];
     /** The number of keys in the RouteDirection object.
@@ -182,13 +168,10 @@ static void parse_route_directions(
      *  so tokens[t + 1].size is the number of RouteDirection keys.
      */
     const size_t route_direction_size = tokens[t + 1].size;
-    // printf("=======Start Route Direction (t: %d, Route_Direction_Size: %d,
-    // rd_num: %d)======", t,
-    //         route_direction_size * 2, rd_num);
     /* jsmntok::size is the number of keys but we're iterating over keys and
      * values, so we need to double the size to get the true count.
      */
-    for (int rdir = 0; rdir < (route_direction_size * 2); rdir++) {
+    for (size_t rdir = 0; rdir < (route_direction_size * 2); rdir++) {
       if (jsoneq(json_ptr, &ROUTE_DIRECTION_TOK, "Direction")) {
         rdir++;
         route_direction->direction_code =
@@ -234,17 +217,12 @@ static void parse_route_directions(
     }
     /* Increase t by an additional 1 to step into the next object */
     t += (route_direction_size * 2) + 1;
-    // printf("==============================(t: %d, rd_num:
-    // %d)========================\n", t,
-    //         rd_num);
   }
   stop->routes_size = valid_route_count;
 }
 
 /** Parses a JSON string with jsmn, then iterates through the jsmn key tokens
  *  to find desired values.
- *
- * TODO: Acount for size of *optional* arrays while iterating.
  */
 int parse_stop_json(char *json_ptr, Stop *stop) {
   static jsmn_parser p;
@@ -254,7 +232,7 @@ int parse_stop_json(char *json_ptr, Stop *stop) {
   static jsmntok_t tokens[STOP_TOK_COUNT + 1];
 
   /** The jsmn token counter. */
-  static unsigned int t;
+  static int t;
 
   jsmn_init(&p);
   struct timespec ts;
@@ -317,7 +295,6 @@ int parse_stop_json(char *json_ptr, Stop *stop) {
     if (jsoneq(json_ptr, &tokens[t], "LastUpdated")) {
       t++;
       char *last_updated_string = json_ptr + tokens[t].start + 7;
-      // last_updated_string[10] = '\0';
       printf("LastUpdated: %lld\n", strtoll(last_updated_string, NULL, 10));
       unsigned long long new_last_updated =
           strtoll(last_updated_string, NULL, 10);

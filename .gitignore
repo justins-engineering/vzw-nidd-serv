@@ -5,3 +5,5 @@ lib/*
 usr/*
 share/*
 include/*
+
+*.o

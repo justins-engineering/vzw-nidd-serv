@@ -14,7 +14,7 @@ typedef struct RecvData {
  * size_t nitems, void *userdata);
  *  @brief User defined curl callback for writing response headers.
  */
-const size_t header_callback(
+size_t header_callback(
     char *buffer, size_t size, size_t nitems, void *userdata
 );
 
@@ -22,7 +22,5 @@ const size_t header_callback(
  * *clientp);
  *  @brief User defined curl callback for writing response body.
  */
-const size_t body_callback(
-    void *data, size_t size, size_t nmemb, void *clientp
-);
+size_t body_callback(void *data, size_t size, size_t nmemb, void *clientp);
 #endif

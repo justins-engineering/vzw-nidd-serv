@@ -1,7 +1,7 @@
 /** @headerfile json_helpers.h */
 #include "json_helpers.h"
 
-const int jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string) {
+int jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string) {
   if (tok->type == JSMN_STRING &&
       (int)strlen(string) == tok->end - tok->start &&
       strncmp(json_ptr + tok->start, string, tok->end - tok->start) == 0) {
@@ -10,7 +10,7 @@ const int jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string) {
   return 0;
 }
 
-const int eval_jsmn_return(nxt_unit_request_info_t *req, int ret) {
+int eval_jsmn_return(nxt_unit_request_info_t *req, int ret) {
   switch (ret) {
     case 0:
       nxt_unit_req_error(req, "Parsed Empty JSON string.");
