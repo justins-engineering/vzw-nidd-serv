@@ -130,7 +130,7 @@ RUN set -ex \
     -Wformat -Werror=format-security \
     -Wp,-D_FORTIFY_SOURCE=2 \
     -fPIC \
-    main.c custom_http_client.c jsmn_parse.c \
+    main.c curl_http_client.c jsmn_parse.c \
     -o app \
     -Wl,-z,relro \
     -Wl,-z,now \

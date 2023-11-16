@@ -39,7 +39,10 @@
         "niddss:dev"
       ],
       "options": {},
-      "group": "none",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
       "detail": "docker image prune & run niddss:dev",
       "problemMatcher": []
     },

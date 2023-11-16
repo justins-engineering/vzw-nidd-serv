@@ -14,8 +14,9 @@
 #include <string.h>
 #include <time.h>
 
-#include "custom_http_client.h"
-#include "jsmn_parse.h"
+#include "http_get_stop.h"
+#include "nidd_client.h"
+#include "parse_stop_json.h"
 #include "stop.h"
 
 #define CONTENT_TYPE "Content-Type"
@@ -94,9 +95,12 @@ static void stop_request_handler(nxt_unit_request_info_t *req) {
   static Stop stop = {.last_updated = 0, .id = STOP_ID};
   size_t stop_size = sizeof(stop);
 
-  /** HTTP response body buffer with size defined by the RECV_BODY_BUF_SIZE
+  /** HTTP response body buffer with size defined by the STOP_JSON_BUF_SIZE
    * macro. */
-  char recv_body_buf[RECV_BODY_BUF_SIZE] = "\0";
+  char json_buf[STOP_JSON_BUF_SIZE] = "\0";
+
+  char vzw_auth_token[37] = "\0";
+  char vzw_m2m_token[49] = "\0";
 
   rc = nxt_unit_response_init(
       req, 200 /* Status code. */, 1 /* Number of response headers. */,
@@ -124,13 +128,13 @@ static void stop_request_handler(nxt_unit_request_info_t *req) {
     goto fail;
   }
 
-  rc = http_request_routes(req, recv_body_buf);
+  rc = http_request_stop_json(req, json_buf);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
     nxt_unit_req_alert(req, "http_request_routes failed");
     goto fail;
   }
 
-  rc = parse_json_for_stop(recv_body_buf, &stop);
+  rc = parse_stop_json(json_buf, &stop);
 
   stop_size += sizeof(RouteDirection) * stop.routes_size;
 
@@ -203,6 +207,8 @@ static void stop_request_handler(nxt_unit_request_info_t *req) {
   buf->free = p;
 
   rc = nxt_unit_buf_send(buf);
+
+  get_vzw_m2m_token(req, "username", "password", "authtoken", "m2mtoken");
 
 fail:
   nxt_unit_request_done(req, rc);

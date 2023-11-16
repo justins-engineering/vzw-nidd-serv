@@ -143,15 +143,14 @@ Run set -x \
     -Wformat -Werror=format-security \
     -Wp,-D_FORTIFY_SOURCE=2 \
     -fPIC \
-    main.c custom_http_client.c jsmn_parse.c \
-    -o app \
+    main.c jsmn.c curl_callbacks.c http_get_routes.c jsmn_parse.c nidd_client.c \
+    -o $app_bin_dir/app \
     -Wl,-z,relro \
     -Wl,-z,now \
     -Wl,--as-needed \
     -pie \
     -L. -lc -lunit -lpthread -lcurl \
-  && chmod +x ./app \
-  && mv ./app $app_bin_dir/app
+  && chmod +x $app_bin_dir/app
 
 # Cleanup
 RUN set -x \
@@ -161,7 +160,7 @@ RUN set -x \
   && rm -f /requirements.apt
 
 # Copy initial config
-COPY --link ./config.json /docker-entrypoint.d/
+COPY --link config/config.json /docker-entrypoint.d/
 
 # Copy the default entrypoint
 COPY --link ./docker-entrypoint.sh /usr/local/bin/

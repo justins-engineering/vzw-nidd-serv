@@ -19,6 +19,15 @@
  */
 #define MAX_DEPARTURES 4
 
+/** @def STOP_JSON_BUF_SIZE
+ *  @brief A macro that defines the max size for HTTP response body receive
+ * buffer.
+ *
+ *  Actual size varies quite a bit depending on how many routes are currently
+ * running.
+ */
+#define STOP_JSON_BUF_SIZE 10240
+
 typedef struct Departure {
   char display_text[50];
   long etd;
