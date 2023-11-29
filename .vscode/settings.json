@@ -1,4 +1,12 @@
 {
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "modificationsIfAvailable",
+  "cmake.configureOnOpen": false,
+  "editor.tabSize": 2,
+  "clangd.arguments": [
+    "--malloc-trim"
+  ],
+  "clangd.fallbackFlags": [
+    "--include-directory=${workspaceFolder}/include"
+  ]
 }

@@ -23,9 +23,12 @@ ARG tmp_dir="/tmp"
 ARG unit_group="unit"
 ARG unit_user="unit"
 ARG unit_clone_dir="$prefix/src/unit"
+
 ARG app_clone_dir="$prefix/src/app"
 ARG app_bin_dir="/srv"
-ARG app_include_dir="/usr/include"
+ARG app_src_dir="$app_clone_dir/src"
+ARG app_include_dir="$app_clone_dir/include"
+ARG app_lib_dir="$app_clone_dir/lib"
 ARG ncpu="getconf _NPROCESSORS_ONLN"
 
 ENV UNIT_RUN_STATE_DIR="$local_state_dir/run/unit"
@@ -87,9 +90,12 @@ RUN set -ex \
     $log_dir \
     $UNIT_RUN_STATE_DIR \
     $tmp_dir \
-    $app_clone_dir/src \
+    $app_src_dir \
+    $app_include_dir \
+    $app_lib_dir \
+    $app_clone_dir/config \
     $app_clone_dir/jsmn \
-    $app_clone_dir/Turbo-Base64 \
+    $app_clone_dir/nibble-and-a-half \
     /docker-entrypoint.d \
   && mkdir -p -m=700 $lib_state_dir \
   && groupadd --gid 999 $unit_group \
@@ -100,7 +106,15 @@ RUN set -ex \
        --home /nonexistent \
        --comment "unit user" \
        --shell /bin/false \
-       $unit_user
+       $unit_user \
+  && useradd \
+       --uid 1001 \
+       --gid $unit_group \
+       --no-create-home \
+       --home /nonexistent \
+       --comment "niddss app user" \
+       --shell /bin/false \
+       niddss
 
 # Clone Unit
 RUN ["hg", "clone", "-u", "1.31.1-1", "https://hg.nginx.org/unit", "$unit_clone_dir"]
@@ -136,18 +150,21 @@ RUN set -ex \
 WORKDIR $app_clone_dir
 
 # Copy app source files
-COPY --link ./src/* "$app_clone_dir"/src
+COPY --link ./src/* "$app_src_dir"
+COPY --link ./include/* "$app_include_dir"
 COPY --link ./Makefile "$app_clone_dir"
 COPY --link ./jsmn/* "$app_clone_dir"/jsmn
-COPY --link ./Turbo-Base64/* "$app_clone_dir"/Turbo-Base64
+COPY --link ./nibble-and-a-half/* "$app_clone_dir"/nibble-and-a-half
+
+RUN --mount=type=secret,id=vzw_secrets.h set -x \
+  && cp /run/secrets/vzw_secrets.h config/vzw_secrets.h
 
 # Compile and link C app against libunit.a
 Run set -x \
   && make -j $(eval $ncpu) \
-  && mv app $app_bin_dir
-
-# Cleanup
-RUN set -x \
+  && make install \
+  && rm -f config/vzw_secrets.h \
+  && cd \
   && apt-get purge -y --auto-remove build-essential \
   && rm -rf /usr/src/* \
   && rm -rf /var/lib/apt/lists/* \

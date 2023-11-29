@@ -1,28 +1,40 @@
 CC ?= gcc
-CFLAGS ?= -g -O2 -fstack-protector-strong -Wall -Wextra -Wformat -Werror=format-security -D_FORTIFY_SOURCE=2 -fPIC
-LDFLAGS ?= -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie -L. -lc -lpthread -lcurl -lunit -ltb64
+DIR ?= .
+app_bin_dir ?= /srv
 
-VPATH = src
+CFLAGS ?= -O3 -fstack-protector-strong -Wall -Wextra -Wformat -Werror=format-security \
+	-D_FORTIFY_SOURCE=2 -fPIC -I$(DIR)/include
+LDFLAGS ?= -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie -L$(DIR) -L$(DIR)/lib -lc -lpthread -lcurl -lunit -lnaah64
 
-objects = main.o jsmn.o json_helpers.o http_get_stop.o curl_callbacks.o parse_stop_json.o nidd_client.o
+VPATH = $(DIR)/src:$(DIR)/include
 
-all: jsmn.h libtb64.a app
+objects = main.o jsmn.o json_helpers.o http_get_stop.o curl_callbacks.o \
+	parse_stop_json.o vzw_connect.o stop_request_handler.o
 
-app: $(objects)
-	$(CC) $(CFLAGS) $(objects) -o app $(LDFLAGS)
-	chmod +x app
+all: jsmn.h base64.h libnaah64.a app
+
+app: config/vzw_secrets.h $(objects)
+	$(CC) $(CFLAGS) $(objects) -o $(DIR)/app $(LDFLAGS)
+	chmod +x $(DIR)/app
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-libtb64.a:
-	$(MAKE) -C ./Turbo-Base64 libtb64.a
-	cp ./Turbo-Base64/libtb64.a /usr/lib
-	cp ./Turbo-Base64/turbob64.h /usr/include
+.PHONY: clean jsmn.h base64.h libnaah64.a install
+
+libnaah64.a:
+	$(MAKE) -C $(DIR)/nibble-and-a-half libnaah64.a
+	cp $(DIR)/nibble-and-a-half/libnaah64.a $(DIR)/lib/
+
+base64.h:
+	cp $(DIR)/nibble-and-a-half/base64.h $(DIR)/include
 
 jsmn.h:
-	cp ./jsmn/jsmn.h /usr/include
+	cp $(DIR)/jsmn/jsmn.h $(DIR)/include
 
-.PHONY: clean libtb64.a jsmn.h install
+install: app
+	cp $(DIR)/app $(app_bin_dir)
+
 clean:
-	rm app $(objects)
+	rm -rf $(DIR)/app $(objects) $(DIR)/lib/libnaah64.a $(DIR)/include/jsmn.h $(DIR)/include/base64.h
+	$(MAKE) -C $(DIR)/nibble-and-a-half clean

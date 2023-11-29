@@ -1,14 +1,15 @@
 {
   "listeners": {
-      "*:8081": {
-          "pass": "applications/c-app"
-      }
+    "*:8081": {
+      "pass": "applications/c-app"
+    }
   },
   "applications": {
-      "c-app": {
-          "type": "external",
-          "working_directory": "/srv",
-          "executable": "/srv/app"
-      }
+    "c-app": {
+      "type": "external",
+      "working_directory": "/srv",
+      "executable": "/srv/app",
+      "user": "niddss"
+    }
   }
 }

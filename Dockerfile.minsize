@@ -23,7 +23,9 @@ ARG unit_user="unit"
 ARG unit_clone_dir="$prefix/src/unit"
 ARG app_clone_dir="$prefix/src/app"
 ARG app_bin_dir="/srv"
-ARG app_include_dir="/usr/include"
+ARG app_src_dir="$app_clone_dir/src"
+ARG app_include_dir="$app_clone_dir/include"
+ARG app_lib_dir="$app_clone_dir/lib"
 ARG ncpu="getconf _NPROCESSORS_ONLN"
 
 ENV UNIT_RUN_STATE_DIR="$local_state_dir/run/unit"
@@ -58,16 +60,30 @@ ARG unit_config_args=\
 --control=unix:$UNIT_SOCKET \
 --tmpdir=$tmp_dir"
 
+RUN set -x \
+  && mkdir -p \
+    $app_src_dir \
+    $app_include_dir \
+    $app_lib_dir \
+    $app_clone_dir/config \
+    $app_clone_dir/jsmn \
+    $app_clone_dir/nibble-and-a-half \
+    /docker-entrypoint.d
+
 # Copy app source files
-COPY --link ./src/* "$app_clone_dir/"
+COPY --link ./src/* "$app_src_dir"
+COPY --link ./include/* "$app_include_dir"
+COPY --link ./Makefile "$app_clone_dir"
+COPY --link ./jsmn/* "$app_clone_dir"/jsmn
+COPY --link ./nibble-and-a-half/* "$app_clone_dir"/nibble-and-a-half
 
 # Copy initial config
-COPY --link ./config.json /docker-entrypoint.d/
+COPY --link config/config.json /docker-entrypoint.d/
 
 # Copy the default entrypoint
 COPY --link ./docker-entrypoint.sh /usr/local/bin/
 
-RUN set -ex \
+RUN --mount=type=secret,id=vzw_secrets.h set -x \
 # Install dependencies
   && apt-get update \
   && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates mercurial \
@@ -85,18 +101,24 @@ RUN set -ex \
     $log_dir \
     $UNIT_RUN_STATE_DIR \
     $tmp_dir \
-    $unit_clone_dir \
-    /docker-entrypoint.d \
   && mkdir -p -m=700 $lib_state_dir \
   && groupadd --gid 999 $unit_group \
   && useradd \
-       --uid 999 \
-       --gid $unit_group \
-       --no-create-home \
-       --home /nonexistent \
-       --comment "unit user" \
-       --shell /bin/false \
-       $unit_user \
+    --uid 999 \
+    --gid $unit_group \
+    --no-create-home \
+    --home /nonexistent \
+    --comment "unit user" \
+    --shell /bin/false \
+    $unit_user \
+  && useradd \
+    --uid 1001 \
+    --gid $unit_group \
+    --no-create-home \
+    --home /nonexistent \
+    --comment "niddss app user" \
+    --shell /bin/false \
+    niddss \
 # Clone NGINX Unit
   && hg clone -u 1.31.1-1 https://hg.nginx.org/unit $unit_clone_dir \
 # Configure and make unitd
@@ -124,22 +146,11 @@ RUN set -ex \
   && apt-get --no-install-recommends --no-install-suggests -y install $(cat /requirements.apt) \
 # Compile and link C app against libunit.a
   && cd $app_clone_dir \
-  && gcc \
-    -O2 \
-    -fstack-protector-strong \
-    -Wformat -Werror=format-security \
-    -Wp,-D_FORTIFY_SOURCE=2 \
-    -fPIC \
-    main.c curl_http_client.c jsmn_parse.c \
-    -o app \
-    -Wl,-z,relro \
-    -Wl,-z,now \
-    -Wl,--as-needed \
-    -pie \
-    -L. -lc -lunit -lpthread -lcurl \
-  && chmod +x ./app \
-  && mv ./app $app_bin_dir/app \
-  # Cleanup
+  && cp /run/secrets/vzw_secrets.h config/vzw_secrets.h \
+  && make -j $(eval $ncpu) \
+  && make install \
+# Cleanup
+  && rm -f config/vzw_secrets.h \
   && apt-get purge -y --auto-remove build-essential \
   && rm -rf $unit_clone_dir \
   && rm -rf $app_clone_dir \

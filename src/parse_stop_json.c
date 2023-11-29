@@ -10,11 +10,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stop.h>
 #include <string.h>
 #include <time.h>
-
-#include "parse_stop_json.h"
-#include "stop.h"
 
 /** The number of keys + values in for each object type in our JSON string */
 #define DEPARTURE_TOK_COUNT 18

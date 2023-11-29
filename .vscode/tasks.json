@@ -8,7 +8,10 @@
       "dependsOrder": "sequence",
       "command": "docker",
       "args": [
+        "buildx",
         "build",
+        "--secret",
+        "id=vzw_secrets.h,src=${workspaceFolder}/config/vzw_secrets.h",
         "-t",
         "niddss:dev",
         "--build-arg",

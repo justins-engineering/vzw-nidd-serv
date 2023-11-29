@@ -1,6 +1,9 @@
 /** @headerfile json_helpers.h */
 #include "json_helpers.h"
 
+#include <config.h>
+#include <stdio.h>
+
 int jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string) {
   if (tok->type == JSMN_STRING &&
       (int)strlen(string) == tok->end - tok->start &&
@@ -10,32 +13,25 @@ int jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string) {
   return 0;
 }
 
-int eval_jsmn_return(nxt_unit_request_info_t *req, int ret) {
+int eval_jsmn_return(int ret) {
   switch (ret) {
     case 0:
-      nxt_unit_req_error(req, "Parsed Empty JSON string.");
+      PRINTERR("Parsed Empty JSON string.\n");
       return 1;
     case JSMN_ERROR_NOMEM:
-      nxt_unit_req_error(
-          req, "Failed to parse JSON; Not enough tokens were provided."
-      );
+      PRINTERR("Failed to parse JSON; Not enough tokens were provided.");
       return 1;
     case JSMN_ERROR_INVAL:
-      nxt_unit_req_error(
-          req, "Failed to parse JSON; Invalid character inside JSON string."
-      );
+      PRINTERR("Failed to parse JSON; Invalid character inside JSON string.");
       return 1;
     case JSMN_ERROR_PART:
-      nxt_unit_req_error(
-          req,
+      PRINTERR(
           "Failed to parse JSON; The string is not a full JSON packet, more "
           "bytes expected."
       );
       return 1;
     default:
-      nxt_unit_req_log(
-          req, NXT_UNIT_LOG_INFO, "Tokens allocated: %d/%d\n", ret, 8
-      );
+      // PRINTSUCCES("Tokens allocated: %d/%d\n", ret, 8);
       return 0;
   }
 }

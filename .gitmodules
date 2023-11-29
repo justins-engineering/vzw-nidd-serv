@@ -1,3 +1,6 @@
 [submodule "jsmn"]
 	path = jsmn
 	url = https://github.com/zserge/jsmn.git
+[submodule "nibble-and-a-half"]
+	path = nibble-and-a-half
+	url = https://github.com/bandogora/nibble-and-a-half.git

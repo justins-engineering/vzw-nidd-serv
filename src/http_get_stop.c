@@ -49,17 +49,17 @@ int http_request_stop_json(nxt_unit_request_info_t *req, char *json_buffer) {
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
   /* we want the headers be written to this file handle */
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, body_callback);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, mem_write_callback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&recv_body);
 
   /* we want the body be written to this file handle instead of stdout */
-  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, mem_write_callback);
   curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&recv_headers);
 
   /*curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, "PEM");*/
   /*curl_easy_setopt(curl, CURLOPT_SSLCERT, "/srv/cert/");*/
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-  // curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 
   /* Perform the request, res will get the return code */
   res = curl_easy_perform(curl);
