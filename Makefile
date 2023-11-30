@@ -3,7 +3,7 @@ DIR ?= .
 app_bin_dir ?= /srv
 
 CFLAGS ?= -O3 -fstack-protector-strong -Wall -Wextra -Wformat -Werror=format-security \
-	-D_FORTIFY_SOURCE=2 -fPIC -I$(DIR)/include
+	-D_FORTIFY_SOURCE=2 -march=native -fPIC -I$(DIR)/include
 LDFLAGS ?= -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie -L$(DIR) -L$(DIR)/lib -lc -lpthread -lcurl -lunit -lnaah64
 
 VPATH = $(DIR)/src:$(DIR)/include

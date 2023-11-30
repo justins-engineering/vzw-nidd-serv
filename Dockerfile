@@ -35,7 +35,7 @@ ENV UNIT_RUN_STATE_DIR="$local_state_dir/run/unit"
 ENV UNIT_PID_PATH="$UNIT_RUN_STATE_DIR/unit.pid"
 ENV UNIT_SOCKET="$UNIT_RUN_STATE_DIR/control.unit.sock"
 ENV UNIT_SBIN_DIR="$exec_prefix/sbin"
-ENV DEB_CFLAGS_MAINT_APPEND="-Wp,-D_FORTIFY_SOURCE=2 -fPIC"
+ENV DEB_CFLAGS_MAINT_APPEND="-Wp,-D_FORTIFY_SOURCE=2 -march=native -fPIC"
 ENV DEB_LDFLAGS_MAINT_APPEND="-Wl,--as-needed -pie"
 ENV DEB_BUILD_MAINT_OPTIONS="hardening=+all,-pie"
 
