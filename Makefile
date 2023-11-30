@@ -9,7 +9,7 @@ LDFLAGS ?= -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie -L$(DIR) -L$(DIR)/lib -l
 VPATH = $(DIR)/src:$(DIR)/include
 
 objects = main.o jsmn.o json_helpers.o http_get_stop.o curl_callbacks.o \
-	parse_stop_json.o vzw_connect.o stop_request_handler.o
+	parse_stop_json.o vzw_connect.o request_handler.o
 
 all: jsmn.h base64.h libnaah64.a app
 

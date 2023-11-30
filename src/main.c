@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include "stop_request_handler.h"
+#include "request_handler.h"
 
 static int thread_count;
 static pthread_t *threads;
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 
   memset(&init, 0, sizeof(nxt_unit_init_t));
 
-  init.callbacks.request_handler = stop_request_handler;
+  init.callbacks.request_handler = request_handler;
   init.callbacks.ready_handler = ready_handler;
 
   ctx = nxt_unit_init(&init);

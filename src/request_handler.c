@@ -1,5 +1,5 @@
-/** @headerfile stop_request_handler.h */
-#include "stop_request_handler.h"
+/** @headerfile request_handler.h */
+#include "request_handler.h"
 
 #define JSMN_HEADER
 
@@ -55,7 +55,7 @@ fail:
   return rc;
 }
 
-void stop_request_handler(nxt_unit_request_info_t *req) {
+void request_handler(nxt_unit_request_info_t *req) {
   int rc;
   char *p;
   // ssize_t res;
