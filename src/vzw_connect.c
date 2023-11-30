@@ -101,8 +101,8 @@ int get_vzw_auth_token(const char *vzw_auth_keys, char *vzw_auth_token) {
   int base64StringLen =
       base64(vzw_auth_keys, strlen(vzw_auth_keys), encoded_token);
 
-  strncpy(auth_token_field, AUTH_TOKEN_FIELD, strlen(AUTH_TOKEN_FIELD));
-  strncpy(
+  (void)memcpy(auth_token_field, AUTH_TOKEN_FIELD, strlen(AUTH_TOKEN_FIELD));
+  (void)memcpy(
       &auth_token_field[strlen(AUTH_TOKEN_FIELD)], encoded_token,
       base64StringLen
   );
@@ -170,8 +170,8 @@ int get_vzw_m2m_token(
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 
-  strncpy(header_token_field, M2M_TOKEN_FIELD, strlen(M2M_TOKEN_FIELD));
-  strncpy(
+  (void)memcpy(header_token_field, M2M_TOKEN_FIELD, strlen(M2M_TOKEN_FIELD));
+  (void)memcpy(
       &header_token_field[strlen(M2M_TOKEN_FIELD)], vzw_auth_token,
       strlen(vzw_auth_token)
   );
@@ -192,13 +192,14 @@ int get_vzw_m2m_token(
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
 
   post_field[0] = '{';
-  strncpy(&post_field[1], USERNAME_FIELD, strlen(USERNAME_FIELD));
-  strncpy(&post_field[strlen(USERNAME_FIELD) + 1], username, strlen(username));
-  strncpy(
+  (void)memcpy(&post_field[1], USERNAME_FIELD, strlen(USERNAME_FIELD));
+  (void
+  )memcpy(&post_field[strlen(USERNAME_FIELD) + 1], username, strlen(username));
+  (void)memcpy(
       &post_field[strlen(USERNAME_FIELD) + 1 + strlen(username)],
       PASSWORD_FIELD, strlen(PASSWORD_FIELD)
   );
-  strncpy(
+  (void)memcpy(
       &post_field
           [strlen(USERNAME_FIELD) + 1 + strlen(username) +
            strlen(PASSWORD_FIELD)],
