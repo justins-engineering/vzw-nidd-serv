@@ -2,9 +2,11 @@
 #include "json_helpers.h"
 
 #include <config.h>
-#include <stdio.h>
 
-int jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string) {
+/** Compares a string with a jsmn token value. */
+int jsoneq(
+    const char *const json_ptr, const jsmntok_t *tok, const char *const string
+) {
   if (tok->type == JSMN_STRING &&
       (int)strlen(string) == tok->end - tok->start &&
       strncmp(json_ptr + tok->start, string, tok->end - tok->start) == 0) {

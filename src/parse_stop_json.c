@@ -1,18 +1,19 @@
 /** @headerfile parse_stop_json.h */
 #include "parse_stop_json.h"
 
-#include <stddef.h>
-
 #define JSMN_HEADER
 
-#include <inttypes.h>
+#include <config.h>
 #include <jsmn.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stop.h>
 #include <string.h>
 #include <time.h>
+
+#include "json_helpers.h"
 
 /** The number of keys + values in for each object type in our JSON string */
 #define DEPARTURE_TOK_COUNT 18
@@ -30,34 +31,24 @@
 #define ROUTE_DIRECTION_TOK tokens[t + rdir + 2]
 #define DEPARTURE_TOK tokens[t + rdir + dep + 3]
 
-/** Compares a string with a jsmn token value. */
-static bool jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string) {
-  if (tok->type == JSMN_STRING &&
-      (int)strlen(string) == tok->end - tok->start &&
-      strncmp(json_ptr + tok->start, string, tok->end - tok->start) == 0) {
-    return true;
-  }
-  return false;
-}
-
-static bool unique_disply_text(
-    const char *json_ptr, RouteDirection *route_direction, jsmntok_t *tok,
-    const size_t valid_departure_count
+static int unique_disply_text(
+    const char *const json_ptr, RouteDirection *route_direction,
+    const jsmntok_t *tok, size_t valid_departure_count
 ) {
   for (size_t i = 0; i < valid_departure_count; i++) {
     Departure *departure = &route_direction->departures[i];
     if (jsoneq(json_ptr, tok, departure->display_text)) {
-      return false;
+      return 0;
     }
   }
-  return true;
+  return 1;
 }
 
 /** Iterates through the Departures array objects to find desired values. */
-static void parse_departures(
-    char *json_ptr, unsigned int t, jsmntok_t tokens[], int rdir,
-    const size_t departures_count, RouteDirection *route_direction,
-    long time_now
+static int parse_departures(
+    const char *const json_ptr, int t, jsmntok_t tokens[], int rdir,
+    size_t departures_count, RouteDirection *route_direction,
+    const long time_now
 ) {
   size_t valid_departure_count = 0;
 
@@ -74,7 +65,7 @@ static void parse_departures(
      *  ROUTE_DIRECTION_TOK is a Departure object,
      *  so ROUTE_DIRECTION_TOK.size is the number of Departure keys.
      */
-    const size_t departure_size = ROUTE_DIRECTION_TOK.size;
+    size_t departure_size = ROUTE_DIRECTION_TOK.size;
     for (size_t dep = 0; dep < (departure_size * 2); dep++) {
       if (jsoneq(json_ptr, &DEPARTURE_TOK, "DisplayText")) {
         dep++;
@@ -102,9 +93,9 @@ static void parse_departures(
          * '/Date(' for atoi(). This also ignores the timezone which we don't
          * need.
          */
-        char *edt_string = json_ptr + DEPARTURE_TOK.start + 7;
+        const char *const edt_string = json_ptr + DEPARTURE_TOK.start + 7;
         long edt = atol(edt_string);
-        printf("* EDT: %ld", edt);
+        PRINTDBG("* EDT: %ld", edt);
         if (edt > time_now) {
           departure->etd = edt;
           edt_in_future = true;
@@ -131,8 +122,8 @@ static void parse_departures(
         dep++;
       } else {
         dep++;
-        printf(
-            "Unexpected key in Departures: %.*s\n",
+        PRINTALRT(
+            "Unexpected key in Departures: %.*s",
             DEPARTURE_TOK.end - DEPARTURE_TOK.start,
             json_ptr + DEPARTURE_TOK.start
         );
@@ -147,13 +138,14 @@ static void parse_departures(
     t += (departure_size * 2);
   }
   route_direction->departures_size = valid_departure_count;
+  return t;
 }
 
 /** Iterates through the RouteDirections array objects to find desired values.
  */
-static void parse_route_directions(
-    char *json_ptr, unsigned int t, jsmntok_t tokens[],
-    const size_t route_directions_count, Stop *stop, long time_now
+static int parse_route_directions(
+    const char *const json_ptr, int t, jsmntok_t tokens[],
+    size_t route_directions_count, Stop *stop, const long time_now
 ) {
   size_t valid_route_count = 0;
 
@@ -165,7 +157,7 @@ static void parse_route_directions(
      *  tokens[t + 1] is a RouteDirection object,
      *  so tokens[t + 1].size is the number of RouteDirection keys.
      */
-    const size_t route_direction_size = tokens[t + 1].size;
+    size_t route_direction_size = tokens[t + 1].size;
     /* jsmntok::size is the number of keys but we're iterating over keys and
      * values, so we need to double the size to get the true count.
      */
@@ -174,7 +166,7 @@ static void parse_route_directions(
         rdir++;
         route_direction->direction_code =
             *(json_ptr + ROUTE_DIRECTION_TOK.start);
-        printf("- Direction: %c", *(json_ptr + ROUTE_DIRECTION_TOK.start));
+        PRINTDBG("- Direction: %c", *(json_ptr + ROUTE_DIRECTION_TOK.start));
       } else if (jsoneq(json_ptr, &ROUTE_DIRECTION_TOK, "IsDone")) {
         rdir++;
       } else if (jsoneq(json_ptr, &ROUTE_DIRECTION_TOK, "IsHeadway")) {
@@ -182,12 +174,12 @@ static void parse_route_directions(
       } else if (jsoneq(json_ptr, &ROUTE_DIRECTION_TOK, "RouteId")) {
         rdir++;
         route_direction->id = atoi(json_ptr + ROUTE_DIRECTION_TOK.start);
-        printf("- RouteId: %d", atoi(json_ptr + ROUTE_DIRECTION_TOK.start));
+        PRINTDBG("- RouteId: %d", atoi(json_ptr + ROUTE_DIRECTION_TOK.start));
       } else if (jsoneq(json_ptr, &ROUTE_DIRECTION_TOK, "Departures")) {
         rdir++;
         if ((ROUTE_DIRECTION_TOK.type == JSMN_ARRAY) &&
             (ROUTE_DIRECTION_TOK.size > 0)) {
-          parse_departures(
+          t = parse_departures(
               json_ptr, t, tokens, rdir, ROUTE_DIRECTION_TOK.size,
               route_direction, time_now
           );
@@ -206,8 +198,8 @@ static void parse_route_directions(
       } else {
         /* We don't care about other keys so skip their values */
         rdir++;
-        printf(
-            "Unexpected key in RouteDirections: %.*s\n",
+        PRINTALRT(
+            "Unexpected key in RouteDirections: %.*s",
             ROUTE_DIRECTION_TOK.end - ROUTE_DIRECTION_TOK.start,
             json_ptr + ROUTE_DIRECTION_TOK.start
         );
@@ -217,51 +209,41 @@ static void parse_route_directions(
     t += (route_direction_size * 2) + 1;
   }
   stop->routes_size = valid_route_count;
+  return t;
 }
 
 /** Parses a JSON string with jsmn, then iterates through the jsmn key tokens
  *  to find desired values.
  */
-int parse_stop_json(char *json_ptr, Stop *stop) {
-  static jsmn_parser p;
+int parse_stop_json(const char *const json_ptr, Stop *stop) {
+  jsmn_parser p;
 
   /** The number of maximum possible tokens we expect in our JSON string + 1 for
    * the \0 delimiter. */
-  static jsmntok_t tokens[STOP_TOK_COUNT + 1];
+  jsmntok_t tokens[STOP_TOK_COUNT + 1];
 
   /** The jsmn token counter. */
-  static int t;
+  int t;
+  int ret;
 
-  jsmn_init(&p);
+  (void)jsmn_init(&p);
   struct timespec ts;
-  timespec_get(&ts, TIME_UTC);
+  ret = timespec_get(&ts, TIME_UTC);
+  if (ret) {
+    PRINTERR("Failed to get current time");
+    return 1;
+  }
 
   /** The number of tokens *allocated* from tokens array to parse the JSON
    * string */
-  const int ret = jsmn_parse(
+  ret = jsmn_parse(
       &p, json_ptr, strlen(json_ptr), tokens, sizeof(tokens) / sizeof(jsmntok_t)
   );
 
-  switch (ret) {
-    case 0:
-      printf("Parsed Empty JSON string.");
-      return EXIT_FAILURE;
-    case JSMN_ERROR_NOMEM:
-      printf("Failed to parse JSON; Not enough tokens were provided.");
-      return EXIT_FAILURE;
-    case JSMN_ERROR_INVAL:
-      printf("Failed to parse JSON; Invalid character inside JSON string.");
-      return EXIT_FAILURE;
-    case JSMN_ERROR_PART:
-      printf(
-          "Failed to parse JSON; The string is not a full JSON packet, more "
-          "bytes expected."
-      );
-      return EXIT_FAILURE;
-    default:
-      break;
+  if (eval_jsmn_return(ret)) {
+    return 1;
   }
-  printf("Tokens allocated: %d/%d\n", ret, STOP_TOK_COUNT);
+  PRINTDBG("Tokens allocated: %d/%d", ret, STOP_TOK_COUNT);
 
   /* Set the starting position for t */
   switch (tokens[0].type) {
@@ -277,13 +259,14 @@ int parse_stop_json(char *json_ptr, Stop *stop) {
       t = 1;
       break;
     default:
-      printf("Top level token isn't an array or object.");
+      PRINTERR("Top level token isn't an array or object.");
       return EXIT_FAILURE;
   }
 
-  long time_now = (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+  const long time_now = (ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
   if (time_now < 0) {
-    return 2;
+    PRINTERR("Time now is in the past!");
+    return 1;
   }
 
   /* We want to loop over all the keys of the root object.
@@ -292,14 +275,14 @@ int parse_stop_json(char *json_ptr, Stop *stop) {
   while (t < ret) {
     if (jsoneq(json_ptr, &tokens[t], "LastUpdated")) {
       t++;
-      char *last_updated_string = json_ptr + tokens[t].start + 7;
-      printf("LastUpdated: %lld\n", strtoll(last_updated_string, NULL, 10));
+      const char *const last_updated_string = json_ptr + tokens[t].start + 7;
+      PRINTDBG("LastUpdated: %lld", strtoll(last_updated_string, NULL, 10));
       unsigned long long new_last_updated =
           strtoll(last_updated_string, NULL, 10);
       if (stop->last_updated < new_last_updated) {
         stop->last_updated = new_last_updated;
       } else {
-        printf("StopDepartures not updated, skipping.");
+        PRINTALRT("StopDepartures not updated, skipping.");
         break;
       }
     } else if (jsoneq(json_ptr, &tokens[t], "RouteDirections")) {
@@ -309,21 +292,21 @@ int parse_stop_json(char *json_ptr, Stop *stop) {
        * so tokens[t].size is the number of RouteDirections
        */
       if (tokens[t].type == JSMN_ARRAY && tokens[t].size > 0) {
-        parse_route_directions(
+        t = parse_route_directions(
             json_ptr, t, tokens, tokens[t].size, stop, time_now
         );
       } else {
-        printf("No RouteDirections to parse.");
+        PRINTERR("No RouteDirections to parse.");
         break;
       }
     } else if (jsoneq(json_ptr, &tokens[t], "StopId")) {
       t++;
       /** TODO: Maybe verify the ID matches the one requested? Seems silly. */
-      printf("StopId: %d\n", atoi(json_ptr + tokens[t].start));
+      PRINTDBG("StopId: %d", atoi(json_ptr + tokens[t].start));
     } else {
       t++;
-      printf(
-          "Unexpected key in Stop: %.*s\n", tokens[t].end - tokens[t].start,
+      PRINTALRT(
+          "Unexpected key in Stop: %.*s", tokens[t].end - tokens[t].start,
           json_ptr + tokens[t].start
       );
     }

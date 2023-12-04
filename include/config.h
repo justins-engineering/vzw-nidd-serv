@@ -1,6 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <stdio.h>
+
 #define PRINTDBG(f_, ...) \
   fprintf(stderr, "%s" f_ "%s", "\e[38;5;87m", ##__VA_ARGS__, "\e[0m\n")
 

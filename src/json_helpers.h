@@ -12,7 +12,9 @@
 #include <string.h>
 
 /** Compares a string with a jsmn token value. */
-int jsoneq(const char *json_ptr, jsmntok_t *tok, const char *string);
+int jsoneq(
+    const char *const json_ptr, const jsmntok_t *tok, const char *const string
+);
 
 int eval_jsmn_return(int ret);
 #endif
