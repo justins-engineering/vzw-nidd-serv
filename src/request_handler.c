@@ -20,11 +20,6 @@
 #define TEXT_PLAIN "text/plain; charset=utf-8"
 #define JSON_UTF8 "application/json; charset=utf-8"
 
-static inline char *copy(char *p, const void *src, uint32_t len) {
-  memcpy(p, src, len);
-  return p + len;
-}
-
 static unsigned int minutes_to_departure(Departure *departure) {
   long edt_ms = departure->etd;
   struct timespec ts;
@@ -75,7 +70,7 @@ void request_handler(nxt_unit_request_info_t *req) {
 
   rc = nxt_unit_response_init(
       req, 200 /* Status code. */, 1 /* Number of response headers. */,
-      nxt_length(CONTENT_TYPE) + nxt_length(TEXT_PLAIN)
+      nxt_length(CONTENT_TYPE) + nxt_length(JSON_UTF8)
   );
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
     nxt_unit_req_log(req, NXT_UNIT_LOG_ALERT, "nxt_unit_response_init failed");
@@ -83,8 +78,8 @@ void request_handler(nxt_unit_request_info_t *req) {
   }
 
   rc = nxt_unit_response_add_field(
-      req, CONTENT_TYPE, nxt_length(CONTENT_TYPE), TEXT_PLAIN,
-      nxt_length(TEXT_PLAIN)
+      req, CONTENT_TYPE, nxt_length(CONTENT_TYPE), JSON_UTF8,
+      nxt_length(JSON_UTF8)
   );
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
     nxt_unit_req_log(
@@ -131,55 +126,48 @@ void request_handler(nxt_unit_request_info_t *req) {
 
   p = buf->free;
 
-  p = copy(p, "Stop ID: ", strlen("Stop ID: "));
-  p = copy(p, stop.id, strlen(stop.id));
-  *p++ = '\n';
+  *p++ = '{';
+  p = json_obj_id_str(p, stop.id, strlen(stop.id));
+  *p++ = '{';
 
   for (int i = 0; i < stop.routes_size; i++) {
     struct RouteDirection route_direction = stop.route_directions[i];
-    nxt_unit_req_log(
-        req, NXT_UNIT_LOG_INFO,
-        "========= Route ID: %d; Direction: %c; Departures size: %d "
-        "========= ",
-        route_direction.id, route_direction.direction_code,
-        route_direction.departures_size
-    );
-
-    *p++ = '\n';
 
     sprintf(id_str, "%d", route_direction.id);
-    p = copy(p, "Route ID: ", strlen("Route ID: "));
-    p = copy(p, id_str, strlen(id_str));
-    *p++ = '\n';
+    p = json_obj_id_str(p, id_str, strlen(id_str));
+    *p++ = '{';
 
-    p = copy(p, "Route Direction: ", strlen("Route Direction: "));
-    *p++ = route_direction.direction_code;
-    *p++ = '\n';
-
-    sprintf(id_str, "%d", route_direction.departures_size);
-    p = copy(p, "Departures size: ", strlen("Departures size: "));
-    p = copy(p, id_str, strlen(id_str));
-    *p++ = '\n';
+    p = json_obj_id_str(p, &route_direction.direction_code, 1);
+    *p++ = '[';
 
     for (int j = 0; j < route_direction.departures_size; j++) {
       struct Departure departure = route_direction.departures[j];
 
       min = minutes_to_departure(&departure);
-      nxt_unit_req_log(
-          req, NXT_UNIT_LOG_INFO, "Display text: %s", departure.display_text
+      *p++ = '{';
+      // sprintf(id_str, "%d", min);
+      p = json_obj_id_str(p, "mtd", strlen("mtd"));
+      p = json_obj_value_num(p, min);
+      *p++ = ',';
+
+      p = json_obj_str(
+          p, "display_text", strlen("display_text"), departure.display_text,
+          strlen(departure.display_text)
       );
-      nxt_unit_req_log(req, NXT_UNIT_LOG_INFO, "Minutes to departure: %d", min);
 
-      p = copy(p, "Display text: ", strlen("Display text: "));
-      p = copy(p, departure.display_text, strlen(departure.display_text));
-      *p++ = '\n';
-
-      sprintf(id_str, "%d", min);
-      p = copy(p, "Minutes to departure: ", strlen("Minutes to departure:"));
-      p = copy(p, id_str, strlen(id_str));
-      *p++ = '\n';
+      *p++ = '}';
+      if (j < (route_direction.departures_size - 1)) {
+        *p++ = ',';
+      }
+    }
+    *p++ = ']';
+    *p++ = '}';
+    if (i < (stop.routes_size - 1)) {
+      *p++ = ',';
     }
   }
+  *p++ = '}';
+  *p++ = '}';
 
   buf->free = p;
   rc = nxt_unit_buf_send(buf);

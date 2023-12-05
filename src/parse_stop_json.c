@@ -74,7 +74,7 @@ static int parse_departures(
         );
 
         if (departure_uniq) {
-          strncpy(
+          memcpy(
               departure->display_text, json_ptr + DEPARTURE_TOK.start,
               DEPARTURE_TOK.end - DEPARTURE_TOK.start
           );
@@ -229,7 +229,7 @@ int parse_stop_json(const char *const json_ptr, Stop *stop) {
   (void)jsmn_init(&p);
   struct timespec ts;
   ret = timespec_get(&ts, TIME_UTC);
-  if (ret) {
+  if (!ret) {
     PRINTERR("Failed to get current time");
     return 1;
   }
