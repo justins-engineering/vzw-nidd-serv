@@ -94,11 +94,11 @@ void request_handler(nxt_unit_request_info_t *req) {
     goto fail;
   }
 
-  rc = get_vzw_tokens(&vzw_auth_token[0], &vzw_m2m_token[0]);
-  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    nxt_unit_req_error(req, "Failed to get VZW credentials");
-    goto fail;
-  }
+  // rc = get_vzw_tokens(&vzw_auth_token[0], &vzw_m2m_token[0]);
+  // if (nxt_slow_path(rc != NXT_UNIT_OK)) {
+  //   nxt_unit_req_error(req, "Failed to get VZW credentials");
+  //   goto fail;
+  // }
 
   rc = http_request_stop_json(req, json_buf);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
@@ -128,45 +128,53 @@ void request_handler(nxt_unit_request_info_t *req) {
 
   *p++ = '{';
   p = json_obj_id_str(p, stop.id, strlen(stop.id));
-  *p++ = '{';
+  *p++ = '[';
 
   for (int i = 0; i < stop.routes_size; i++) {
     struct RouteDirection route_direction = stop.route_directions[i];
 
-    sprintf(id_str, "%d", route_direction.id);
-    p = json_obj_id_str(p, id_str, strlen(id_str));
-    *p++ = '{';
+    // p = json_obj_id_str(p, "routes", strlen("routes"));
 
-    p = json_obj_id_str(p, &route_direction.direction_code, 1);
-    *p++ = '[';
+    *p++ = '{';
+    p = json_obj_id_str(p, "direction", strlen("direction"));
+    p = json_obj_value_str(p, &route_direction.direction_code, 1);
+    *p++ = ',';
+
+    p = json_obj_id_str(p, "id", strlen("id"));
+    sprintf(id_str, "%d", route_direction.id);
+    p = json_obj_value_str(p, id_str, strlen(id_str));
+    *p++ = ',';
+
+    // p = json_obj_id_str(p, "departures", strlen("departures"));
+    // *p++ = '[';
 
     for (int j = 0; j < route_direction.departures_size; j++) {
       struct Departure departure = route_direction.departures[j];
 
       min = minutes_to_departure(&departure);
-      *p++ = '{';
+      // *p++ = '{';
       // sprintf(id_str, "%d", min);
       p = json_obj_id_str(p, "mtd", strlen("mtd"));
       p = json_obj_value_num(p, min);
       *p++ = ',';
 
       p = json_obj_str(
-          p, "display_text", strlen("display_text"), departure.display_text,
+          p, "text", strlen("text"), departure.display_text,
           strlen(departure.display_text)
       );
 
-      *p++ = '}';
-      if (j < (route_direction.departures_size - 1)) {
-        *p++ = ',';
-      }
+      // *p++ = '}';
+      // if (j < (route_direction.departures_size - 1)) {
+      //   *p++ = ',';
+      // }
     }
-    *p++ = ']';
+    // *p++ = ']';
     *p++ = '}';
     if (i < (stop.routes_size - 1)) {
       *p++ = ',';
     }
   }
-  *p++ = '}';
+  *p++ = ']';
   *p++ = '}';
 
   buf->free = p;
