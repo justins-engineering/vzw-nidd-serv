@@ -94,8 +94,8 @@ RUN set -ex \
     $app_include_dir \
     $app_lib_dir \
     $app_clone_dir/config \
-    $app_clone_dir/jsmn \
-    $app_clone_dir/nibble-and-a-half \
+    $app_clone_dir/modules/jsmn \
+    $app_clone_dir/modules/nibble-and-a-half \
     /docker-entrypoint.d \
   && mkdir -p -m=700 $lib_state_dir \
   && groupadd --gid 999 $unit_group \
@@ -153,8 +153,8 @@ WORKDIR $app_clone_dir
 COPY --link ./src/* "$app_src_dir"
 COPY --link ./include/* "$app_include_dir"
 COPY --link ./Makefile "$app_clone_dir"
-COPY --link ./jsmn/* "$app_clone_dir"/jsmn
-COPY --link ./nibble-and-a-half/* "$app_clone_dir"/nibble-and-a-half
+COPY --link ./modules/jsmn/* "$app_clone_dir"/modules/jsmn
+COPY --link ./modules/nibble-and-a-half/* "$app_clone_dir"/modules/nibble-and-a-half
 
 RUN --mount=type=secret,id=vzw_secrets.h set -x \
   && cp /run/secrets/vzw_secrets.h config/vzw_secrets.h

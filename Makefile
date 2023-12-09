@@ -22,18 +22,18 @@ app: config/vzw_secrets.h $(objects)
 .PHONY: clean jsmn.h base64.h libnaah64.a install
 
 libnaah64.a:
-	$(MAKE) -C $(DIR)/nibble-and-a-half libnaah64.a
-	cp $(DIR)/nibble-and-a-half/libnaah64.a $(DIR)/lib/
+	$(MAKE) -C $(DIR)/modules/nibble-and-a-half libnaah64.a
+	cp $(DIR)/modules/nibble-and-a-half/libnaah64.a $(DIR)/lib/
 
 base64.h:
-	cp $(DIR)/nibble-and-a-half/base64.h $(DIR)/include
+	cp $(DIR)/modules/nibble-and-a-half/base64.h $(DIR)/include
 
 jsmn.h:
-	cp $(DIR)/jsmn/jsmn.h $(DIR)/include
+	cp $(DIR)/modules/jsmn/jsmn.h $(DIR)/include
 
 install: app
 	cp $(DIR)/app $(app_bin_dir)
 
 clean:
 	rm -rf $(DIR)/app $(objects) $(DIR)/lib/libnaah64.a $(DIR)/include/jsmn.h $(DIR)/include/base64.h
-	$(MAKE) -C $(DIR)/nibble-and-a-half clean
+	$(MAKE) -C $(DIR)/modules/nibble-and-a-half clean
