@@ -96,6 +96,11 @@ RUN set -ex \
     $app_clone_dir/config \
     $app_clone_dir/modules/jsmn \
     $app_clone_dir/modules/nibble-and-a-half \
+    $app_bin_dir/assets/fontawesome/js \
+    $app_bin_dir/assets/fontawesome/svgs/solid \
+    $app_bin_dir/images \
+    $app_bin_dir/javascripts \
+    $app_bin_dir/stylesheets \
     /docker-entrypoint.d \
   && mkdir -p -m=700 $lib_state_dir \
   && groupadd --gid 999 $unit_group \
@@ -155,6 +160,12 @@ COPY --link ./include/* "$app_include_dir"
 COPY --link ./Makefile "$app_clone_dir"
 COPY --link ./modules/jsmn/* "$app_clone_dir"/modules/jsmn
 COPY --link ./modules/nibble-and-a-half/* "$app_clone_dir"/modules/nibble-and-a-half
+COPY --link ./modules/vzw-nidd-front-end/build/*.html "$app_bin_dir"
+COPY --link ./modules/vzw-nidd-front-end/build/assets/fontawesome/js/* "$app_bin_dir/assets/fontawesome/js"
+COPY --link ./modules/vzw-nidd-front-end/build/assets/fontawesome/svgs/solid/* "$app_bin_dir/assets/fontawesome/svgs/solid"
+COPY --link ./modules/vzw-nidd-front-end/build/images/* "$app_bin_dir/images"
+COPY --link ./modules/vzw-nidd-front-end/build/javascripts/* "$app_bin_dir/javascripts"
+COPY --link ./modules/vzw-nidd-front-end/build/stylesheets/* "$app_bin_dir/stylesheets"
 
 RUN --mount=type=secret,id=vzw_secrets.h set -x \
   && cp /run/secrets/vzw_secrets.h config/vzw_secrets.h
