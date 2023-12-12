@@ -1,9 +1,25 @@
 {
   "listeners": {
-    "*:8081": {
+    "*:80": {
+      "pass": "routes"
+    },
+    "*:81": {
+      "pass": "applications/c-app"
+    },
+    "*:443": {
+      "pass": "routes"
+    },
+    "*:444": {
       "pass": "applications/c-app"
     }
   },
+  "routes": [
+    {
+      "action": {
+        "share": "/srv/$uri"
+      }
+    }
+  ],
   "applications": {
     "c-app": {
       "type": "external",

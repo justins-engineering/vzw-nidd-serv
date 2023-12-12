@@ -4,3 +4,6 @@
 [submodule "nibble-and-a-half"]
 	path = modules/nibble-and-a-half
 	url = https://github.com/bandogora/nibble-and-a-half.git
+[submodule "vzw-nidd-front-end"]
+	path = modules/vzw-nidd-front-end
+	url = https://github.com/justins-engineering/vzw-nidd-front-end.git
