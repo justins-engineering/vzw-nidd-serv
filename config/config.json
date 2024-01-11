@@ -16,7 +16,10 @@
   "routes": [
     {
       "action": {
-        "share": "/srv/$uri"
+        "share": [
+          "/srv/$uri",
+          "/srv/$uri.html"
+        ]
       }
     }
   ],
