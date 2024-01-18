@@ -21,6 +21,7 @@ ARG tmp_dir="/tmp"
 ARG unit_group="unit"
 ARG unit_user="unit"
 ARG unit_clone_dir="$prefix/src/unit"
+
 ARG app_clone_dir="$prefix/src/app"
 ARG app_bin_dir="/srv"
 ARG app_src_dir="$app_clone_dir/src"
@@ -68,7 +69,10 @@ RUN set -x \
     $app_clone_dir/config \
     $app_clone_dir/modules/jsmn \
     $app_clone_dir/modules/nibble-and-a-half \
-    /docker-entrypoint.d
+    /docker-entrypoint.d \
+    $app_bin_dir/images \
+    $app_bin_dir/javascripts \
+    $app_bin_dir/stylesheets
 
 # Copy app source files
 COPY --link ./src/* "$app_src_dir"
@@ -76,6 +80,10 @@ COPY --link ./include/* "$app_include_dir"
 COPY --link ./Makefile "$app_clone_dir"
 COPY --link ./modules/jsmn/* "$app_clone_dir"/modules/jsmn
 COPY --link ./modules/nibble-and-a-half/* "$app_clone_dir"/modules/nibble-and-a-half
+COPY --link ./assets/*.html "$app_bin_dir"
+COPY --link ./assets/images/* "$app_bin_dir/images"
+COPY --link ./assets/javascripts/* "$app_bin_dir/javascripts"
+COPY --link ./assets/stylesheets/* "$app_bin_dir/stylesheets"
 
 # Copy initial config
 COPY --link config/config.json /docker-entrypoint.d/
@@ -101,6 +109,12 @@ RUN --mount=type=secret,id=vzw_secrets.h set -x \
     $log_dir \
     $UNIT_RUN_STATE_DIR \
     $tmp_dir \
+    $app_src_dir \
+    $app_include_dir \
+    $app_lib_dir \
+    $app_clone_dir/config \
+    $app_clone_dir/modules/jsmn \
+    $app_clone_dir/modules/nibble-and-a-half \
   && mkdir -p -m=700 $lib_state_dir \
   && groupadd --gid 999 $unit_group \
   && useradd \
