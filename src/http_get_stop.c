@@ -1,6 +1,7 @@
 /** @headerfile http_get_stop.h */
 #include "http_get_stop.h"
 
+#include "config.h"
 #include "curl_callbacks.h"
 
 /* Newlib C includes */
@@ -12,11 +13,12 @@
 #define HTTP_REQUEST_HOSTNAME "bustracker.pvta.com"
 
 /** A macro that defines the HTTP file path for the request headers. */
-#define HTTP_REQUEST_PATH                  \
-  "/InfoPoint/rest/SignageStopDepartures/" \
-  "GetSignageDeparturesByStopId?stopId=" STOP_ID
+#define HTTP_REQUEST_PATH \
+  "/InfoPoint/rest/SignageStopDepartures/GetSignageDeparturesByStopId?stopId="
 
-#define URL "https://" HTTP_REQUEST_HOSTNAME HTTP_REQUEST_PATH
+#define STOP_URL "https://" HTTP_REQUEST_HOSTNAME HTTP_REQUEST_PATH
+
+#define STOP_URL_LEN (sizeof(STOP_URL) / sizeof(char)) + 4
 
 /** @def RECV_HEADER_BUF_SIZE
  *  @brief A macro that defines the max size for HTTP response headers receive
@@ -26,9 +28,17 @@
  */
 #define RECV_HEADER_BUF_SIZE 640
 
-int http_request_stop_json(nxt_unit_request_info_t *req, char *json_buffer) {
+int http_request_stop_json(
+    nxt_unit_request_info_t *req, char *json_buffer, void *path
+) {
+  PRINTDBG("Stop ID: %s", (char *)(path + 6));
+
   CURL *curl = curl_easy_init();
   CURLcode res;
+
+  char url[STOP_URL_LEN] = STOP_URL;
+
+  strcat(url, (char *)(path + 6));
 
   /** HTTP response headers buffer with size defined by the RECV_HEADER_BUF_SIZE
    * macro. */
@@ -41,7 +51,7 @@ int http_request_stop_json(nxt_unit_request_info_t *req, char *json_buffer) {
   headers = curl_slist_append(headers, "Accept: application/json");
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-  curl_easy_setopt(curl, CURLOPT_URL, URL);
+  curl_easy_setopt(curl, CURLOPT_URL, url);
   curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
 
   curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);

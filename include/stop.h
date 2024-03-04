@@ -1,9 +1,6 @@
 #ifndef STOP_H
 #define STOP_H
 
-/* Edit this to chose what stop you want to query */
-#define STOP_ID "73"
-
 /** @def MAX_ROUTES
  *  @brief A macro that defines the maximum number of routes expected for a
  * stop.

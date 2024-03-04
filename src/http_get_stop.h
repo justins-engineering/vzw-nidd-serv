@@ -10,5 +10,7 @@
  *  @brief Makes an HTTP GET request and returns a char pointer to the HTTP
  * response body buffer.
  */
-int http_request_stop_json(nxt_unit_request_info_t *req, char *json_buffer);
+int http_request_stop_json(
+    nxt_unit_request_info_t *req, char *json_buffer, void *path
+);
 #endif

@@ -3,17 +3,19 @@
     "*:80": {
       "pass": "routes"
     },
-    "*:81": {
-      "pass": "applications/c-app"
-    },
     "*:443": {
       "pass": "routes"
-    },
-    "*:444": {
-      "pass": "applications/c-app"
     }
   },
   "routes": [
+    {
+      "match": {
+        "uri": "~^/stop/\\d+"
+      },
+      "action": {
+        "pass": "applications/c-app"
+      }
+    },
     {
       "action": {
         "share": [

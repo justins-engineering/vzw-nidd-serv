@@ -1,13 +1,18 @@
 /** @headerfile request_handler.h */
 #include "request_handler.h"
 
+#include <nxt_unit_request.h>
+#include <nxt_unit_typedefs.h>
+
 #define JSMN_HEADER
 
 #include <config.h>
 #include <jsmn.h>
 #include <nxt_clang.h>
 #include <nxt_unit.h>
+#include <nxt_unit_sptr.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #include "../config/vzw_secrets.h"
@@ -17,7 +22,8 @@
 #include "vzw_connect.h"
 
 #define CONTENT_TYPE "Content-Type"
-#define TEXT_PLAIN "text/plain; charset=utf-8"
+#define TEXT_HTML_UTF8 "text/html; charset=utf-8"
+#define TEXT_PLAIN_UTF8 "text/plain; charset=utf-8"
 #define JSON_UTF8 "application/json; charset=utf-8"
 
 static unsigned int minutes_to_departure(Departure *departure) {
@@ -50,15 +56,48 @@ fail:
   return rc;
 }
 
-void request_handler(nxt_unit_request_info_t *req) {
-  int rc;
+static int response_init(
+    nxt_unit_request_info_t *req_info, int rc, uint16_t status, char *type
+) {
+  rc = nxt_unit_response_init(
+      req_info, status, 1, nxt_length(CONTENT_TYPE) + strlen(type)
+  );
+  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
+    nxt_unit_req_log(
+        req_info, NXT_UNIT_LOG_ALERT, "nxt_unit_response_init failed"
+    );
+    return 1;
+  }
+
+  rc = nxt_unit_response_add_field(
+      req_info, CONTENT_TYPE, nxt_length(CONTENT_TYPE), type, strlen(type)
+  );
+  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
+    nxt_unit_req_log(
+        req_info, NXT_UNIT_LOG_ALERT, "nxt_unit_response_add_field failed"
+    );
+    return 1;
+  }
+
+  rc = nxt_unit_response_send(req_info);
+  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
+    nxt_unit_req_alert(req_info, "first nxt_unit_response_send failed");
+    return 1;
+  }
+
+  return 0;
+}
+
+static void stop_request_handler(
+    nxt_unit_request_info_t *req_info, void *path, int rc
+) {
   char *p;
-  // ssize_t res;
   nxt_unit_buf_t *buf;
   unsigned int min;
   char id_str[12];
 
-  static Stop stop = {.last_updated = 0, .id = STOP_ID};
+  static Stop stop = {.last_updated = 0};
+  stop.id = (char *)(path + 6);
   size_t stop_size = sizeof(stop);
 
   char vzw_auth_token[50] = "\0";
@@ -68,41 +107,20 @@ void request_handler(nxt_unit_request_info_t *req) {
    * macro. */
   char json_buf[STOP_JSON_BUF_SIZE] = "\0";
 
-  rc = nxt_unit_response_init(
-      req, 200 /* Status code. */, 1 /* Number of response headers. */,
-      nxt_length(CONTENT_TYPE) + nxt_length(JSON_UTF8)
-  );
-  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    nxt_unit_req_log(req, NXT_UNIT_LOG_ALERT, "nxt_unit_response_init failed");
-    goto fail;
-  }
-
-  rc = nxt_unit_response_add_field(
-      req, CONTENT_TYPE, nxt_length(CONTENT_TYPE), JSON_UTF8,
-      nxt_length(JSON_UTF8)
-  );
-  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    nxt_unit_req_log(
-        req, NXT_UNIT_LOG_ALERT, "nxt_unit_response_add_field failed"
-    );
-    goto fail;
-  }
-
-  rc = nxt_unit_response_send(req);
-  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    nxt_unit_req_alert(req, "first nxt_unit_response_send failed");
+  rc = response_init(req_info, rc, 200, JSON_UTF8);
+  if (rc == 1) {
     goto fail;
   }
 
   // rc = get_vzw_tokens(&vzw_auth_token[0], &vzw_m2m_token[0]);
   // if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-  //   nxt_unit_req_error(req, "Failed to get VZW credentials");
+  //   nxt_unit_req_error(req_info, "Failed to get VZW credentials");
   //   goto fail;
   // }
 
-  rc = http_request_stop_json(req, json_buf);
+  rc = http_request_stop_json(req_info, json_buf, path);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    nxt_unit_req_alert(req, "http_request_routes failed");
+    nxt_unit_req_alert(req_info, "http_request_routes failed");
     goto fail;
   }
 
@@ -116,7 +134,8 @@ void request_handler(nxt_unit_request_info_t *req) {
   }
 
   buf = nxt_unit_response_buf_alloc(
-      req, ((req->request_buf->end - req->request_buf->start) + stop_size)
+      req_info,
+      ((req_info->request_buf->end - req_info->request_buf->start) + stop_size)
   );
 
   if (nxt_slow_path(buf == NULL)) {
@@ -130,10 +149,14 @@ void request_handler(nxt_unit_request_info_t *req) {
   p = json_obj_id_str(p, stop.id, strlen(stop.id));
   *p++ = '[';
 
+  p = buf->free;
+
+  *p++ = '{';
+  p = json_obj_id_str(p, stop.id, strlen(stop.id));
+  *p++ = '[';
+
   for (int i = 0; i < stop.routes_size; i++) {
     struct RouteDirection route_direction = stop.route_directions[i];
-
-    // p = json_obj_id_str(p, "routes", strlen("routes"));
 
     *p++ = '{';
     p = json_obj_id_str(p, "direction", strlen("direction"));
@@ -145,15 +168,10 @@ void request_handler(nxt_unit_request_info_t *req) {
     p = json_obj_value_str(p, id_str, strlen(id_str));
     *p++ = ',';
 
-    // p = json_obj_id_str(p, "departures", strlen("departures"));
-    // *p++ = '[';
-
     for (int j = 0; j < route_direction.departures_size; j++) {
       struct Departure departure = route_direction.departures[j];
 
       min = minutes_to_departure(&departure);
-      // *p++ = '{';
-      // sprintf(id_str, "%d", min);
       p = json_obj_id_str(p, "mtd", strlen("mtd"));
       p = json_obj_value_num(p, min);
       *p++ = ',';
@@ -162,13 +180,7 @@ void request_handler(nxt_unit_request_info_t *req) {
           p, "text", strlen("text"), departure.display_text,
           strlen(departure.display_text)
       );
-
-      // *p++ = '}';
-      // if (j < (route_direction.departures_size - 1)) {
-      //   *p++ = ',';
-      // }
     }
-    // *p++ = ']';
     *p++ = '}';
     if (i < (stop.routes_size - 1)) {
       *p++ = ',';
@@ -180,10 +192,30 @@ void request_handler(nxt_unit_request_info_t *req) {
   buf->free = p;
   rc = nxt_unit_buf_send(buf);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-    nxt_unit_req_error(req, "Failed to send buffer");
+    nxt_unit_req_error(req_info, "Failed to send buffer");
     goto fail;
   }
 
 fail:
-  nxt_unit_request_done(req, rc);
+  nxt_unit_request_done(req_info, rc);
+}
+
+void request_router(nxt_unit_request_info_t *req_info) {
+  int rc;
+  nxt_unit_sptr_t *rp = &req_info->request->path;
+
+  void *path = nxt_unit_sptr_get(rp);
+
+  if (strncmp(path, "/stop/", 6) == 0) {
+    stop_request_handler(req_info, path, rc);
+  } else {
+    response_init(req_info, rc, 404, TEXT_PLAIN_UTF8);
+    if (rc == 1) {
+      goto fail;
+    }
+    nxt_unit_response_write(req_info, "Error 404", strlen("Error 404"));
+  }
+
+fail:
+  nxt_unit_request_done(req_info, rc);
 }
