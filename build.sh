@@ -45,7 +45,7 @@ if [ $prune ]; then
 fi
 
 if [ $docker_run ]; then
-  docker run --rm -p 8081:80 --name niddss_dev niddss:dev
+  docker run --rm -p 80:80 --name niddss_dev niddss:dev
 fi
 
 cd -

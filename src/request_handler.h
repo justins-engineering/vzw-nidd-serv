@@ -9,5 +9,5 @@
 /** @fn void stop_request_handler(nxt_unit_request_info_t *req)
  *  @brief Unit request handler for a stop request.
  */
-void request_handler(nxt_unit_request_info_t *req);
+void request_router(nxt_unit_request_info_t *req);
 #endif
