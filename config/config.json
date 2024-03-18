@@ -10,7 +10,10 @@
   "routes": [
     {
       "match": {
-        "uri": "/vzw*"
+        "uri": [
+          "/vzw*",
+          "/firmware*"
+        ]
       },
       "action": {
         "pass": "applications/c-app"

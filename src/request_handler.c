@@ -16,6 +16,7 @@
 #include <time.h>
 
 #include "../config/vzw_secrets.h"
+#include "firmware_requests.h"
 #include "json_helpers.h"
 #include "vzw_connect.h"
 
@@ -82,9 +83,7 @@ static int response_init(
   return 0;
 }
 
-void vzw_request_handler(
-    nxt_unit_request_info_t *req_info, void *path, int rc
-) {
+void vzw_request_handler(nxt_unit_request_info_t *req_info, int rc) {
   char *p;
   // ssize_t res;
   nxt_unit_buf_t *buf;
@@ -110,6 +109,7 @@ void vzw_request_handler(
 
   if (nxt_slow_path(buf == NULL)) {
     rc = NXT_UNIT_ERROR;
+    nxt_unit_req_error(req_info, "Failed to allocate response buffer");
     goto fail;
   }
 
@@ -129,6 +129,50 @@ fail:
   nxt_unit_request_done(req_info, rc);
 }
 
+void firmware_versions_request_handler(
+    nxt_unit_request_info_t *req_info, int rc
+) {
+  char *p;
+  char latest_tag[12];
+  nxt_unit_buf_t *buf;
+
+  rc = response_init(req_info, rc, 200, TEXT_PLAIN_UTF8);
+  if (rc == 1) {
+    goto fail;
+  }
+
+  rc = latest_firmware(&latest_tag[0]);
+  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
+    nxt_unit_req_error(req_info, "Failed to get latest firmware version tag");
+    goto fail;
+  }
+
+  buf = nxt_unit_response_buf_alloc(
+      req_info, ((req_info->request_buf->end - req_info->request_buf->start) +
+                 strlen(&latest_tag[0]))
+  );
+
+  if (nxt_slow_path(buf == NULL)) {
+    rc = NXT_UNIT_ERROR;
+    nxt_unit_req_error(req_info, "Failed to allocate response buffer");
+    goto fail;
+  }
+
+  p = buf->free;
+
+  p = copy(p, latest_tag, strlen(latest_tag));
+
+  buf->free = p;
+  rc = nxt_unit_buf_send(buf);
+  if (nxt_slow_path(rc != NXT_UNIT_OK)) {
+    nxt_unit_req_error(req_info, "Failed to send buffer");
+    goto fail;
+  }
+
+fail:
+  nxt_unit_request_done(req_info, rc);
+}
+
 void request_router(nxt_unit_request_info_t *req_info) {
   int rc;
   nxt_unit_sptr_t *rp = &req_info->request->path;
@@ -136,7 +180,9 @@ void request_router(nxt_unit_request_info_t *req_info) {
   void *path = nxt_unit_sptr_get(rp);
 
   if (strncmp(path, "/vzw", 4) == 0) {
-    vzw_request_handler(req_info, path, rc);
+    (void)vzw_request_handler(req_info, rc);
+  } else if ((strncmp(path, "/firmware", 9) == 0)) {
+    (void)firmware_versions_request_handler(req_info, rc);
   } else {
     response_init(req_info, rc, 404, TEXT_PLAIN_UTF8);
     if (rc == 1) {

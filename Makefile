@@ -8,7 +8,7 @@ LDFLAGS ?= -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie -L$(DIR) -L$(DIR)/lib -l
 
 VPATH = $(DIR)/src:$(DIR)/include
 
-objects = main.o jsmn.o json_helpers.o curl_callbacks.o vzw_connect.o request_handler.o
+objects = main.o jsmn.o json_helpers.o curl_callbacks.o vzw_connect.o request_handler.o firmware_requests.o
 
 all: jsmn.h base64.h libnaah64.a app
 
