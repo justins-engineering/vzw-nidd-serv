@@ -1,6 +1,6 @@
 CC ?= gcc
 DIR ?= .
-app_bin_dir ?= /srv
+app_bin_dir ?= /usr/bin
 
 CFLAGS ?= -O3 -fstack-protector-strong -Wall -Wextra -Wformat -Werror=format-security \
 	-D_FORTIFY_SOURCE=2 -march=native -fPIC -I$(DIR)/include
@@ -32,7 +32,7 @@ jsmn.h:
 	cp $(DIR)/modules/jsmn/jsmn.h $(DIR)/include
 
 install: app
-	cp $(DIR)/app $(app_bin_dir)
+	cp $(DIR)/app $(app_bin_dir)/iots
 
 clean:
 	rm -rf $(DIR)/app $(objects) $(DIR)/lib/libnaah64.a $(DIR)/include/jsmn.h $(DIR)/include/base64.h
