@@ -5,13 +5,16 @@
 #ifndef FIRMWARE_REQUESTS_H
 #define FIRMWARE_REQUESTS_H
 
-/** @fn int firmware_versions(void)
+#include <stdio.h>
+#include <sys/stat.h>
+
+/** @fn int latest_firmware(char *tags_buf)
  *  @brief Gets a list of github release tags using the github-api.
  */
-int latest_firmware(char *tags_buf);
+// int latest_firmware_tag(char *tags_buf);
 
-/** @fn firmware_update()
+/** @fn int update_firmware_github(char *tag, char *buf);
  *  @brief Proxys a firmware download octect-stream from github objects.
  */
-// int firmware_update();
+int download_firmware_github(FILE **fptr, long *file_size);
 #endif
