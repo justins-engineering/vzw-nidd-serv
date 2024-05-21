@@ -142,7 +142,7 @@ RUN --mount=type=secret,id=vzw_secrets.h set -x \
   && chown root:$app_group $app_firmware_dir \
   && chmod -R 775 $app_firmware_dir \
 # Clone NGINX Unit
-  && git clone --depth 1 -b 1.32.0-1 https://github.com/nginx/unit $unit_clone_dir \
+  && git clone --depth 1 -b 1.32.1-1 https://github.com/nginx/unit $unit_clone_dir \
 # Configure and make unitd
   && cd $unit_clone_dir \
   && ./configure $unit_config_args --cc-opt="$(eval $cc_opt)" --ld-opt="$(eval $ld_opt)" \

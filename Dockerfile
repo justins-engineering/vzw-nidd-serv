@@ -130,7 +130,7 @@ RUN set -ex \
   && chmod -R 775 $app_firmware_dir
 
 # Clone Unit
-RUN set -ex && git clone --depth 1 -b 1.32.0-1 https://github.com/nginx/unit $unit_clone_dir
+RUN set -ex && git clone --depth 1 -b 1.32.1-1 https://github.com/nginx/unit $unit_clone_dir
 
 WORKDIR $unit_clone_dir
 
