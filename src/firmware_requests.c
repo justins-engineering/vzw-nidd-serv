@@ -38,6 +38,7 @@ static CURLcode latest_firmware_tag(
       curl, CURLOPT_URL, "https://github.com/" REPO "/releases/latest"
   );
 
+  PRINTDBG("Fetching latest firmware tag...");
   res = curl_easy_perform(curl);
   if (res != CURLE_OK) {
     PRINTERR("curl_easy_perform() failed: %s", curl_easy_strerror(res));
@@ -72,7 +73,6 @@ int download_firmware_github(FILE **fptr, long *file_size) {
   );
   curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
-  PRINTDBG("Getting latest firmware tag...");
   res = latest_firmware_tag(curl, header_buf, latest_tag);
   char filename[14 + strlen(latest_tag) + 16];
   if (res != CURLE_OK) {
@@ -101,7 +101,10 @@ int download_firmware_github(FILE **fptr, long *file_size) {
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, *fptr);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
   curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+  curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
   curl_easy_setopt(curl, CURLOPT_URL, url);
+
+  PRINTDBG("Downloading firmware file from %s to %s...", url, filename);
 
   res = curl_easy_perform(curl);
   if (res != CURLE_OK) {
@@ -110,15 +113,9 @@ int download_firmware_github(FILE **fptr, long *file_size) {
   }
 
   *file_size = ftell(*fptr);
-
-  // rewind(*fptr);
-  // if (fstat(fileno(*fptr), file_info) != 0) {
-  //   PRINTERR("Failed to stat firmware file");
-  // }
-  PRINTDBG("Firmware file size: %ld B", *file_size);
+  PRINTDBG("Done");
 
 cleanup:
   curl_easy_cleanup(curl);
-
   return (int)res;
 }
