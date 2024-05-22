@@ -3,9 +3,6 @@
 
 #include <config.h>
 #include <curl/curl.h>
-#include <curl/header.h>
-#include <fcntl.h>
-#include <nxt_unit.h>
 #include <stdio.h>
 #include <string.h>
 

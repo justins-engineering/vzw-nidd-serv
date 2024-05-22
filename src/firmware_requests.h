@@ -6,7 +6,6 @@
 #define FIRMWARE_REQUESTS_H
 
 #include <stdio.h>
-#include <sys/stat.h>
 
 /** @fn int latest_firmware(char *tags_buf)
  *  @brief Gets a list of github release tags using the github-api.

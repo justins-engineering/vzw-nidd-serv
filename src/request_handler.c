@@ -7,20 +7,15 @@
 #define JSMN_HEADER
 
 #include <config.h>
-#include <curl/curl.h>
-#include <fcntl.h>
-#include <jsmn.h>
 #include <nxt_clang.h>
 #include <nxt_unit.h>
 #include <nxt_unit_sptr.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <time.h>
 
 #include "../config/vzw_secrets.h"
 #include "firmware_requests.h"
-#include "json_helpers.h"
 #include "vzw_connect.h"
 
 #define CONTENT_TYPE "Content-Type"
