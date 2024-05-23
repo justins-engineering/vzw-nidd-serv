@@ -7,13 +7,8 @@
 
 #include <stdio.h>
 
-/** @fn int latest_firmware(char *tags_buf)
- *  @brief Gets a list of github release tags using the github-api.
+/** @fn int download_firmware_github(FILE **fptr);
+ *  @brief Caches and sends latest firmware from github releases.
  */
-// int latest_firmware_tag(char *tags_buf);
-
-/** @fn int update_firmware_github(char *tag, char *buf);
- *  @brief Proxys a firmware download octect-stream from github objects.
- */
-int download_firmware_github(FILE **fptr, long *file_size);
+int download_firmware_github(FILE **fptr);
 #endif

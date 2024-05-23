@@ -49,7 +49,7 @@ cleanup:
   return res;
 }
 
-int download_firmware_github(FILE **fptr, long *file_size) {
+int download_firmware_github(FILE **fptr) {
   CURL *curl = curl_easy_init();
   CURLcode res;
   char *p;
@@ -80,10 +80,17 @@ int download_firmware_github(FILE **fptr, long *file_size) {
   p = stpcpy(p, latest_tag);
   (void)stpcpy(p, "_app_update.bin");
 
-  *fptr = fopen(filename, "wb+");
-  if (fptr == NULL) {
-    PRINTERR("Failed to create firmware file");
-    goto cleanup;
+  *fptr = fopen(filename, "wb+x");
+  PRINTDBG("fptr %p", *fptr);
+  if (*fptr == NULL) {
+    *fptr = fopen(filename, "rb");
+    if (*fptr == NULL) {
+      PRINTERR("Failed to create firmware file");
+      goto cleanup;
+    } else {
+      PRINTDBG("Firmware file already exists");
+      goto cleanup;
+    }
   }
 
   char url[80] = "https://github.com/" REPO "/releases/download/";
@@ -109,7 +116,11 @@ int download_firmware_github(FILE **fptr, long *file_size) {
     fclose(*fptr);
   }
 
-  *file_size = ftell(*fptr);
+  (void)rewind(*fptr);
+  if (fptr == NULL) {
+    PRINTERR("fptr null");
+  }
+
   PRINTDBG("Done");
 
 cleanup:

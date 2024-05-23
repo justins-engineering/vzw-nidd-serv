@@ -126,7 +126,6 @@ void firmware_request_handler(nxt_unit_request_info_t *req_info, int rc) {
   char *p;
   nxt_unit_buf_t *buf;
   struct stat file_info;
-  long file_size;
   FILE *fptr;
   size_t io_blocks;
 
@@ -135,19 +134,15 @@ void firmware_request_handler(nxt_unit_request_info_t *req_info, int rc) {
     goto fail;
   }
 
-  rc = download_firmware_github(&fptr, &file_size);
+  rc = download_firmware_github(&fptr);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
     nxt_unit_req_error(req_info, "Failed to get latest firmware from GitHub");
     goto fail;
   }
 
-  (void)rewind(fptr);
-  if (fptr == NULL) {
-    PRINTERR("fptr null");
-  }
-
   if (fstat(fileno(fptr), &file_info) != 0) {
     perror("[firmware_request_handler] Failed to stat firmware file. Error");
+    goto fail;
   }
 
   /* file_info.st_blocks is the number of 512B blocks allocated on Linux.
@@ -162,7 +157,7 @@ void firmware_request_handler(nxt_unit_request_info_t *req_info, int rc) {
     io_blocks = file_info.st_blocks;
   }
 
-  PRINTDBG("Firmware file size: %ld B", file_size);
+  PRINTDBG("Firmware file size: %ld B", file_info.st_size);
   PRINTDBG("I/O block size: %ld B", file_info.st_blksize);
   PRINTDBG("Blocks allocated: %ld", io_blocks);
 
@@ -190,8 +185,8 @@ void firmware_request_handler(nxt_unit_request_info_t *req_info, int rc) {
        * current buffer, file_info.st_blksize.
        */
       buf->free =
-          (p +
-           (file_info.st_blksize - ((file_info.st_blocks * 512) - file_size)));
+          (p + (file_info.st_blksize -
+                ((file_info.st_blocks * 512) - file_info.st_size)));
     }
 
     rc = nxt_unit_buf_send(buf);
