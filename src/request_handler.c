@@ -30,7 +30,7 @@ static inline char *copy(char *p, const void *src, uint32_t len) {
 }
 
 static int get_vzw_tokens(char *vzw_auth_token, char *vzw_m2m_token) {
-  int rc;
+  int rc = 0;
 
   rc = get_vzw_auth_token(VZW_PUBLIC_KEY ":" VZW_PRIVATE_KEY, vzw_auth_token);
   if (nxt_slow_path(rc != NXT_UNIT_OK)) {
@@ -205,7 +205,7 @@ fail:
 }
 
 void request_router(nxt_unit_request_info_t *req_info) {
-  int rc;
+  int rc = 0;
   nxt_unit_sptr_t *rp = &req_info->request->path;
 
   void *path = nxt_unit_sptr_get(rp);
