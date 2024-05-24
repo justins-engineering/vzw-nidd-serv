@@ -4,11 +4,10 @@
 #include <config.h>
 #include <curl/curl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "curl_callbacks.h"
-
-#define REC_HEADER_SIZE 5000
 
 #define REPO "umts/embedded-departure-board"
 #define REPO_URL "https://github.com/" REPO "/releases/latest"
@@ -29,7 +28,7 @@ static void parse_tag(char *headers, char *tag) {
 }
 
 static CURLcode latest_firmware_tag(
-    CURL *curl, char *header_buf, char *latest_tag
+    CURL *curl, RecvData *header_data, char *latest_tag
 ) {
   CURLcode res;
 
@@ -44,8 +43,8 @@ static CURLcode latest_firmware_tag(
     goto cleanup;
   }
 
-  parse_tag(header_buf, latest_tag);
-  PRINTDBG("Latest firmware tag: %s", latest_tag);
+  parse_tag(header_data->response, latest_tag);
+  PRINTALRT("Latest firmware tag: %s", latest_tag);
 
 cleanup:
   return res;
@@ -56,11 +55,11 @@ int download_firmware_github(FILE **fptr) {
   CURLcode res;
   char *p;
   char latest_tag[12];
-  char header_buf[REC_HEADER_SIZE];
   char user_agent[19] = "licurl/";
+  RecvData header_data = {NULL, 0};
 
-  RecvData header_data = {header_buf, 0};
-  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, mem_write_callback);
+  // header_data.size = 0;
+  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, heap_mem_write_callback);
   curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header_data);
   curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
   curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
@@ -72,7 +71,7 @@ int download_firmware_github(FILE **fptr) {
   );
   curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
-  res = latest_firmware_tag(curl, header_buf, latest_tag);
+  res = latest_firmware_tag(curl, &header_data, latest_tag);
   if (res != CURLE_OK) {
     goto cleanup;
   }
@@ -86,7 +85,6 @@ int download_firmware_github(FILE **fptr) {
   (void)stpcpy(p, APP_UPDATE_NAME_PARTIAL);
 
   *fptr = fopen(filename, "wb+x");
-  PRINTDBG("fptr %p", *fptr);
   if (*fptr == NULL) {
     *fptr = fopen(filename, "rb");
     if (*fptr == NULL) {
@@ -106,7 +104,7 @@ int download_firmware_github(FILE **fptr) {
   (void)stpcpy(p, "/app_update.bin");
 
   header_data.size = 0;
-  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, mem_write_callback);
+  curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, heap_mem_write_callback);
   curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header_data);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, *fptr);
@@ -131,6 +129,7 @@ int download_firmware_github(FILE **fptr) {
   PRINTDBG("Done");
 
 cleanup:
+  free(header_data.response);
   curl_easy_cleanup(curl);
   return (int)res;
 }
