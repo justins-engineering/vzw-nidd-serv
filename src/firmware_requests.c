@@ -11,6 +11,10 @@
 #define REC_HEADER_SIZE 5000
 
 #define REPO "umts/embedded-departure-board"
+#define REPO_URL "https://github.com/" REPO "/releases/latest"
+
+#define APP_UPDATE_DIR "/srv/firmware/"
+#define APP_UPDATE_NAME_PARTIAL "_app_update.bin"
 
 static void parse_tag(char *headers, char *tag) {
   char *p;
@@ -31,9 +35,7 @@ static CURLcode latest_firmware_tag(
 
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-  curl_easy_setopt(
-      curl, CURLOPT_URL, "https://github.com/" REPO "/releases/latest"
-  );
+  curl_easy_setopt(curl, CURLOPT_URL, REPO_URL);
 
   PRINTDBG("Fetching latest firmware tag...");
   res = curl_easy_perform(curl);
@@ -71,14 +73,17 @@ int download_firmware_github(FILE **fptr) {
   curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
   res = latest_firmware_tag(curl, header_buf, latest_tag);
-  char filename[14 + strlen(latest_tag) + 16];
   if (res != CURLE_OK) {
     goto cleanup;
   }
 
-  p = stpcpy(filename, "/srv/firmware/");
+  char filename
+      [sizeof(APP_UPDATE_DIR) + sizeof(latest_tag) +
+       sizeof(APP_UPDATE_NAME_PARTIAL) - 2];
+
+  p = stpcpy(filename, APP_UPDATE_DIR);
   p = stpcpy(p, latest_tag);
-  (void)stpcpy(p, "_app_update.bin");
+  (void)stpcpy(p, APP_UPDATE_NAME_PARTIAL);
 
   *fptr = fopen(filename, "wb+x");
   PRINTDBG("fptr %p", *fptr);
@@ -93,7 +98,9 @@ int download_firmware_github(FILE **fptr) {
     }
   }
 
-  char url[80] = "https://github.com/" REPO "/releases/download/";
+  char
+      url[sizeof(REPO_URL) + sizeof(latest_tag) + sizeof("/app_update.bin") -
+          3] = REPO_URL;
 
   p = stpcpy((url + strlen(url)), &latest_tag[0]);
   (void)stpcpy(p, "/app_update.bin");
