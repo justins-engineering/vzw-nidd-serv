@@ -1,0 +1,13 @@
+[package]
+name = "loft"
+version = "0.1.0"
+edition = "2024"
+authors = ["Justin's Engineering Services, LLC"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+rocket = { version = "0.5.1", features = ["secrets", "tls", "json"] }
+
+[lints.clippy]
+pedantic = { priority = -1, level = "warn" }
+cargo = { priority = -1, level = "allow" }

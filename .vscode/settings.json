@@ -11,5 +11,6 @@
   ],
   "clangd.fallbackFlags": [
     "--include-directory=${workspaceFolder}/include"
-  ]
+  ],
+  "rust-analyzer.check.command": "clippy"
 }
