@@ -1,58 +1,136 @@
-#[macro_use]
-extern crate rocket;
-use rocket::fs::{FileServer, relative};
-// mod vzw {
-//   mod credentials;
-// }
+#![forbid(unsafe_code)]
 
-#[cfg(debug_assertions)]
-// If we wanted or needed to serve files manually, we'd use `NamedFile`. Always
-// prefer to use `FileServer`!
-mod manual {
-  use rocket::fs::NamedFile;
-  use std::path::{Path, PathBuf};
+use dioxus::logger::tracing::{debug, error};
+use dioxus::prelude::*;
 
-  #[rocket::get("/second/<path..>")]
-  pub async fn second(path: PathBuf) -> Option<NamedFile> {
-    let mut path = Path::new(super::relative!("modules/vzw-nidd-front-end/build")).join(path);
-    if path.is_dir() {
-      path.push("index.html");
+// use views::{
+//   Index, PageNotFound, ServerError, VerificationFlow,
+//   Verify, Wrapper,
+// };
+use views::{Index, PageNotFound, Wrapper};
+
+#[cfg(feature = "server")]
+use ory_kratos_client_wasm::apis::configuration::Configuration;
+
+#[cfg(feature = "server")]
+use ory_kratos_client_wasm::apis::metadata_api::{is_alive, is_ready};
+
+mod components;
+mod views;
+
+const KRATOS_BROWSER_URL: &str = "http://127.0.0.1:4433";
+
+#[cfg(feature = "server")]
+trait Create {
+  fn create() -> Configuration;
+}
+
+#[cfg(feature = "server")]
+impl Create for Configuration {
+  fn create() -> Configuration {
+    let mut headers = reqwest::header::HeaderMap::with_capacity(1);
+
+    headers.insert(
+      reqwest::header::ACCEPT,
+      reqwest::header::HeaderValue::from_static("application/json"),
+    );
+
+    headers.insert(
+      reqwest::header::CONTENT_TYPE,
+      reqwest::header::HeaderValue::from_static("application/json"),
+    );
+    Configuration {
+      base_path: KRATOS_BROWSER_URL.to_owned(),
+      client: reqwest::ClientBuilder::new()
+        .default_headers(headers)
+        .build()
+        .expect("Failed to build reqwest client"),
+      user_agent: None,
+      basic_auth: None,
+      oauth_access_token: None,
+      bearer_access_token: None,
+      api_key: None,
     }
-
-    NamedFile::open(path).await.ok()
   }
 }
 
-#[get("/hello/<name>")]
-fn hello(name: &str) -> String {
-  format!("Hello, {name}!")
+#[server]
+async fn get_server_data() -> Result<String, ServerFnError> {
+  return match is_ready(&Configuration::create()).await {
+    Ok(r) => {
+      debug!("Kratos readiness check: {}", r.status.clone());
+      Ok(format!("Kratos readiness check: {}", r.status.to_owned()))
+    }
+    Err(e) => {
+      error!("Kratos readiness check failed! Error: {:?}", e.to_string());
+      Ok(format!(
+        "Kratos readiness check failed! Error: {:?}",
+        e.to_string()
+      ))
+    }
+  };
 }
 
-#[get("/vzw/nidd")]
-fn vzw_send_nidd() {}
-
-#[get("/vzw/registered_callback_listeners")]
-fn vzw_registered_callback_listeners() {}
-
-#[get("/firmware")]
-fn firmware_request_handler() {}
-
-#[cfg(debug_assertions)]
-#[launch]
-fn rocket() -> _ {
-  rocket::build()
-    .mount("/", rocket::routes![manual::second])
-    .mount(
-      "/",
-      FileServer::from(relative!("modules/vzw-nidd-front-end/build")),
-    )
-    .mount("/", routes![hello])
+#[derive(Debug, Clone, Routable, PartialEq)]
+#[rustfmt::skip]
+enum Route {
+  #[layout(Wrapper)]
+    #[route("/")]
+    Index {},
+    // #[route("/verify")]
+    // Verify {},
+    // #[route("/verification?:flow")]
+    // VerificationFlow { flow: String },
+    #[end_layout]
+  #[route("/:..route")]
+  PageNotFound { route: Vec<String> },
 }
 
-#[cfg(not(debug_assertions))]
-#[launch]
-fn rocket() -> _ {
-  rocket::build()
-    .mount("/", FileServer::from("/srv"))
-    .mount("/", routes![hello])
+const TAILWIND_CSS: Asset = asset!("/assets/styling/main.css");
+
+fn main() {
+  dioxus::launch(App);
+}
+
+#[component]
+fn App() -> Element {
+  rsx! {
+    document::Link { rel: "stylesheet", href: TAILWIND_CSS }
+    document::Link {
+      rel: "icon",
+      href: asset!("/assets/images/icon-light.ico"),
+      sizes: "32x32",
+    }
+    document::Link {
+      rel: "icon",
+      href: asset!("/assets/images/icon-light.ico"),
+      sizes: "32x32",
+      media: "prefers-color-scheme: light",
+    }
+    document::Link {
+      rel: "icon",
+      href: asset!("/assets/images/icon-dark.ico"),
+      sizes: "32x32",
+      media: "prefers-color-scheme: dark",
+    }
+    document::Link {
+      rel: "icon",
+      r#type: "image/svg+xml",
+      href: asset!("/assets/images/icon-light.svg"),
+    }
+    document::Link {
+      rel: "icon",
+      r#type: "image/svg+xml",
+      href: asset!("/assets/images/icon-light.svg"),
+      media: "prefers-color-scheme: light",
+    }
+    document::Link {
+      rel: "icon",
+      r#type: "image/svg+xml",
+      href: asset!("/assets/images/icon-dark.svg"),
+      media: "prefers-color-scheme: dark",
+    }
+
+    Router::<Route> {}
+  }
 }

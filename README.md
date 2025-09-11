@@ -1,43 +1,39 @@
 # Loft
-A middleware server and Docker Image based on [NGIX Unit](https://unit.nginx.org/) that exchanges data between [IoT devices](https://docs.circuitdojo.com/nrf9160-introduction.html) and Verizon Thingspace using Verizon's [ThingSpace Connectivity Management API](https://thingspace.verizon.com/documentation/apis/connectivity-management/working-with-verizon/about-non-ip-data-delivery.html).
 
 ## Development
 
-### Recomendations
-<!-- - Install [NGINX Unit from source](https://unit.nginx.org/installation/#source-code)
-  - `make` libunit-install ([ref](https://www.nginx.com/blog/nginx-unit-adds-assembly-language-support/))
-  - Make sure `libunit.a` and it's `include` dir are in a path that GCC includes by default; or edit the C include file paths in the [source code](https://github.com/justins-engineering/nidd-sign-serv/blob/main/src/main.c) for testing. -->
-- VSCode
-  - Build & run tasks are included
-  - Configured to use Clang-Tidy
-- [Docker Buildx](https://docs.docker.com/engine/reference/commandline/buildx/)
+### Requirements
+- [Bun](https://bun.com/get)
+- [Dioxus CLI](https://dioxuslabs.com/learn/0.6/getting_started/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
 
-### Setup
-```sh
-./init.sh
+### Tailwind CSS
+1. Run the following command in the root of the project:
+```bash
+bun install
 ```
-This script inits, updates, and resets the git submodules. It then runs `bundle && bun install` on the front-end submodule, and finally it runs `make clean && make`.
+2. Run the following command in the root of the project to start the Tailwind CSS compiler:
 
-### Build
-```sh
-./build.sh
+```bash
+bunx @tailwindcss/cli -i ./assets/tailwind.css -o ./assets/styling/main.css --watch
 ```
-#### `build.sh` Flags:
-- `p`: prune Docker containers, images, and buildx cache after build
-- `r`: runs the docker container after building with the options `--rm -p 80:80 --name loft_dev`
-- `d`: Adds the docker build option `--build-arg debug=true`
-  - Adds vim to the built image
-  - Adds the aliases `ls='ls -F --color=auto'` & `grep='grep -nI --color=auto'` to `/root/.bashrc`
-  - Builds `unitd` & `libunit.a` with the `--debug` optiion
-- `m`: Builds `Dockerfile.minsize`; not recomended for development as it offers far less caching
 
-### Running
-```sh
-docker run --rm -p 80:80 --name loft_dev loft:dev
-```
-The server will be viewable at http://localhost:80
+### Starting Kratos
 
-### Docker container shell
-```sh
-docker exec -it loft_dev /bin/bash
+Run the following command in the root of your project:
+
+```bash
+docker-compose up --force-recreate
 ```
+
+### Serving The App
+
+Run the following command in the root of your project to start developing with the default platform:
+
+```bash
+dx serve --addr 127.0.0.1 --port 4455
+```
+
+- Open the web app at http://127.0.0.1:4455
+- Open MailSlurper at http://127.0.0.1:4436
+- Open [kratos-admin-ui](https://github.com/dhia-gharsallaoui/kratos-admin-ui) at http://127.0.0.1:3000

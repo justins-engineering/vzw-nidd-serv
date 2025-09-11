@@ -1,0 +1,10 @@
+[application]
+asset_dir = "public"
+
+[bundle]
+copyright = "Justin's Engineering Services, LLC"
+
+[web.app]
+
+# HTML title tag content
+title = "Loft"
