@@ -3,11 +3,11 @@
   "workspaces": {
     "": {
       "dependencies": {
-        "@tailwindcss/cli": "^4.1.12",
-        "tailwindcss": "^4.1.12",
+        "@tailwindcss/cli": "^4.1.13",
+        "tailwindcss": "^4.1.13",
       },
       "devDependencies": {
-        "daisyui": "^5.0.50",
+        "daisyui": "^5.1.12",
       },
     },
   },
@@ -90,7 +90,7 @@
 
     "chownr": ["chownr@3.0.0", "", {}, "sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g=="],
 
-    "daisyui": ["daisyui@5.1.10", "", {}, "sha512-p1J/HME2WmaSiy6u2alIbeP3gd5PNVft3+6Bdll0BRSm/UdI4084+pD01LxFug/5wGexNewWqbcEL6nB2n2o+Q=="],
+    "daisyui": ["daisyui@5.1.12", "", {}, "sha512-wPk6TfH6cPjYFcJIj1Zn2IYjrXLHtKbHD7GesfTDpH86d6Mgy1GTgl8mhKUqpbnVnTUNgkV7L2diPsvOGSpBIw=="],
 
     "detect-libc": ["detect-libc@1.0.3", "", { "bin": { "detect-libc": "./bin/detect-libc.js" } }, "sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg=="],
 
