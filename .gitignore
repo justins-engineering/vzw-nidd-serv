@@ -11,3 +11,4 @@ config/vzw_secrets.h
 
 assets/styling/main.css
 build
+dist
